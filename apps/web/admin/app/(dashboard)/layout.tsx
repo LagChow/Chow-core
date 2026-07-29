@@ -37,7 +37,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <SocketProvider>
+    <SocketProvider token={token}>
       <SidebarProvider>
         <AppSidebar user={user} />
         <SidebarInset>

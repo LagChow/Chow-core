@@ -7,6 +7,7 @@ import { MaintenanceScreen } from '@/components/maintenance-screen';
 import { db } from '@lagchow/database';
 import { platformSettings } from '@lagchow/database/src/schema';
 import { eq } from 'drizzle-orm';
+import { cookies } from "next/headers";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -21,6 +22,9 @@ export default async function RootLayout({
   const maintenanceRecord = await db.select().from(platformSettings).where(eq(platformSettings.key, 'maintenance_mode')).limit(1);
   const isMaintenanceMode = maintenanceRecord[0]?.value === true;
 
+  const cookieStore = await cookies();
+  const token = cookieStore.get('__session')?.value;
+
   return (
     <html lang="en" className={cn("dark", "font-sans", geist.variable)}>
       <head>
@@ -31,7 +35,7 @@ export default async function RootLayout({
         {isMaintenanceMode ? (
           <MaintenanceScreen />
         ) : (
-          <SocketProvider>
+          <SocketProvider token={token}>
             <>{children}</>
           </SocketProvider>
         )}
