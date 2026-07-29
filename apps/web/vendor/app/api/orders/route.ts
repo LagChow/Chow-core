@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { db, orders, orderItems, items, eq, desc, inArray } from '@lagchow/database';
+import { db, orders, orderItems, items, eq, desc } from '@lagchow/database';
+import { inArray } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
