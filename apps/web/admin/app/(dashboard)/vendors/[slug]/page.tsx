@@ -268,6 +268,7 @@ async function OrdersTab({ vendorId }: { vendorId: string }) {
     totalAmount: orders.totalAmount,
     status: orders.status,
     createdAt: orders.createdAt,
+    userName: users.name,
     userEmail: users.email,
   })
   .from(orders)
@@ -300,7 +301,10 @@ async function OrdersTab({ vendorId }: { vendorId: string }) {
               vendorOrders.map(order => (
                 <tr key={order.id} className="hover:bg-white/[0.01] transition-colors">
                   <td className="p-4 pl-6 font-mono text-xs text-muted-foreground">#{order.id.split('-')[0]}</td>
-                  <td className="p-4 text-sm font-medium">{order.userEmail || 'Guest'}</td>
+                  <td className="p-4">
+                    <div className="text-sm font-medium">{order.userName || 'Guest'}</div>
+                    <div className="text-xs text-muted-foreground font-normal">{order.userEmail || 'No email provided'}</div>
+                  </td>
                   <td className="p-4 font-black">₦{order.totalAmount?.toLocaleString()}</td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
