@@ -1,0 +1,21 @@
+{
+  "name": "@lagchow/utils",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@lagchow/config": "workspace:*"
+  },
+  "devDependencies": {
+    "@lagchow/typescript-config": "workspace:*",
+    "@types/node": "^20.10.6",
+    "tsup": "^8.0.1",
+    "typescript": "5.9.2"
+  }
+}

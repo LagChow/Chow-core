@@ -1,0 +1,30 @@
+{
+  "name": "lagchow",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .gitignore",
+    "dev:web:customer": "turbo run dev --filter=@lagchow/web-customer",
+    "dev:web:vendor": "turbo run dev --filter=@lagchow/web-vendor",
+    "dev:web:rider": "turbo run dev --filter=@lagchow/web-rider",
+    "dev:web:admin": "turbo run dev --filter=@lagchow/web-admin",
+    "dev:mobile:customer": "turbo run dev --filter=@lagchow/mobile-customer",
+    "dev:mobile:vendor": "turbo run dev --filter=@lagchow/mobile-vendor",
+    "dev:mobile:rider": "turbo run dev --filter=@lagchow/mobile-rider"
+  },
+  "devDependencies": {
+    "prettier": "^3.1.1",
+    "turbo": "^2.10.4"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "10.33.0"
+    }
+  }
+}

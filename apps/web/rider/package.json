@@ -1,0 +1,32 @@
+{
+  "name": "@lagchow/web-rider",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3002",
+    "build": "next build",
+    "start": "next start --port 3002",
+    "lint": "eslint .",
+    "clean": "rm -rf .next node_modules"
+  },
+  "dependencies": {
+    "@lagchow/config": "workspace:*",
+    "@lagchow/types": "workspace:*",
+    "@lagchow/ui": "workspace:*",
+    "@lagchow/utils": "workspace:*",
+    "next": "16.2.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-native-web": "^0.21.0"
+  },
+  "devDependencies": {
+    "@lagchow/typescript-config": "workspace:*",
+    "@types/node": "^20.10.6",
+    "@types/react": "~19.2.10",
+    "@types/react-dom": "~19.2.0",
+    "babel-plugin-react-native-web": "^0.19.10",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.0.4",
+    "typescript": "5.9.2"
+  }
+}

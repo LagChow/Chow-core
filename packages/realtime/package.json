@@ -1,0 +1,35 @@
+{
+  "name": "@lagchow/realtime",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@lagchow/types": "workspace:*",
+    "@lagchow/config": "workspace:*",
+    "socket.io-client": "^4.7.5"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@lagchow/typescript-config": "workspace:*",
+    "@types/node": "^20.10.6",
+    "@types/react": "^18.2.0",
+    "tsup": "^8.0.1",
+    "typescript": "5.9.2"
+  }
+}

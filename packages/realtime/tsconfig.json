@@ -1,0 +1,10 @@
+{
+  "extends": "@lagchow/typescript-config/react-native-library.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "jsx": "react"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
