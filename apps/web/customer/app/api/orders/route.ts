@@ -97,6 +97,33 @@ export async function POST(request: Request) {
 
     const newOrder = order;
 
+    // 3. Emit NEW_ORDER realtime event to the Socket Server
+    try {
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3010";
+      await fetch(`${wsUrl}/emit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: "NEW_ORDER",
+          data: {
+            eventId: crypto.randomUUID(),
+            timestamp: new Date().toISOString(),
+            actorId: userId,
+            actorType: "customer",
+            data: {
+              orderId: order.id,
+              vendorId: dbVendor.id,
+              status: order.status,
+              totalAmount: order.totalAmount
+            }
+          }
+        })
+      });
+    } catch (wsError) {
+      console.error("Failed to emit realtime order event:", wsError);
+      // We don't fail the order if the websocket notification fails
+    }
+
     return NextResponse.json(newOrder, { status: 201 });
   } catch (error) {
     console.error("Error creating order:", error);

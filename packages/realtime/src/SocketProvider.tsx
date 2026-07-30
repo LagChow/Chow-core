@@ -21,14 +21,22 @@ export const SocketProvider: React.FC<{ children: React.ReactNode, token?: strin
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
+    // Don't connect if there's no token — the user isn't authenticated
+    if (!token) {
+      setSocket(null);
+      setIsConnected(false);
+      return;
+    }
+
     const s = getSocket(token);
     
-    // Reconnect if the socket was already connected but the token has changed
-    if (token && (s.auth as any)?.token !== token) {
-      s.auth = { token };
-      if (s.connected) {
-        s.disconnect().connect();
-      }
+    // Ensure the token is up to date and (re)connect
+    s.auth = { token };
+    if (!s.connected) {
+      s.connect();
+    } else if ((s.auth as any)?.token !== token) {
+      // Token changed on an already-connected socket — reconnect with new token
+      s.disconnect().connect();
     }
 
     setSocket(s);
