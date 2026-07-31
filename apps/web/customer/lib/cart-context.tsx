@@ -22,6 +22,8 @@ interface CartContextType {
   setIsCartOpen: (isOpen: boolean) => void;
   totalItems: number;
   totalAmount: number;
+  deliveryLocation: string;
+  setDeliveryLocation: (location: string) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -29,12 +31,15 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [deliveryLocation, setDeliveryLocation] = useState<string>("New Hall (Eni-Njoku)");
 
   // Load from local storage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("lagchow_cart");
       if (saved) setItems(JSON.parse(saved));
+      const savedLoc = localStorage.getItem("lagchow_location");
+      if (savedLoc) setDeliveryLocation(savedLoc);
     } catch (e) {}
   }, []);
 
@@ -42,6 +47,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     localStorage.setItem("lagchow_cart", JSON.stringify(items));
   }, [items]);
+
+  useEffect(() => {
+    if (deliveryLocation) {
+      localStorage.setItem("lagchow_location", deliveryLocation);
+    }
+  }, [deliveryLocation]);
 
   const addItem = (newItem: Omit<CartItem, "quantity">) => {
     setItems((prev) => {
@@ -86,6 +97,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setIsCartOpen,
         totalItems,
         totalAmount,
+        deliveryLocation,
+        setDeliveryLocation,
       }}
     >
       {children}

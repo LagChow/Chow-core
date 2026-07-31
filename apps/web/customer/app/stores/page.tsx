@@ -22,10 +22,9 @@ const queueColorMap: Record<string, any> = {
 };
 
 export default function HomePage() {
-  const { totalItems, setIsCartOpen } = useCart();
+  const { totalItems, setIsCartOpen, deliveryLocation: activeAddress, setDeliveryLocation: setActiveAddress } = useCart();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
-  const [activeAddress, setActiveAddress] = useState('New Hall Unilag, Akoka 101245, Lagos, Nigeria');
   const { user, loading } = useUser();
   const [searchQuery, setSearchQuery] = useState('');
   const [savedVendorIds, setSavedVendorIds] = useState<string[]>([]);

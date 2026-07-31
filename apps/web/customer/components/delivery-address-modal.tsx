@@ -19,33 +19,7 @@ const SAVED_ADDRESSES = [
   "New Hall Unilag, Akoka 101245, Lagos, Nigeria"
 ];
 
-const UNILAG_LOCATIONS = [
-  "Moremi Hall",
-  "Mariere Hall",
-  "Eni Njoku Hall",
-  "Aminu Kano Hall",
-  "Jaja Hall",
-  "Fagunwa Hall",
-  "Makama Hall",
-  "Sodiende Hall",
-  "Honours Hall",
-  "Kofo Ademola Hall",
-  "Queen Amina Hall",
-  "Madam Tinubu Hall",
-  "Main Library",
-  "Faculty of Arts",
-  "Faculty of Science",
-  "Faculty of Engineering",
-  "Faculty of Law",
-  "Faculty of Education",
-  "Faculty of Social Sciences",
-  "Faculty of Management Sciences",
-  "Senate Building",
-  "Staff Quarters",
-  "Medical Centre (Jaja)",
-  "Sports Centre",
-  "DLI (Distance Learning Institute)"
-];
+import { UNILAG_LOCATIONS } from '../lib/constants';
 
 export function DeliveryAddressModal({ isOpen, onClose, activeAddress, onSelectAddress }: DeliveryAddressModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
