@@ -115,7 +115,8 @@ export const orders = pgTable('orders', {
   vendorId: uuid('vendor_id').notNull().references(() => vendors.id),
   deliveryModeId: uuid('delivery_mode_id').references(() => deliveryModes.id),
   riderId: uuid('rider_id').references(() => riders.id),
-  status: text('status').notNull().default('pending'), // pending, accepted, preparing, out_for_delivery, delivered, cancelled
+  status: text('status').notNull().default('pending'), // pending, accepted, preparing, ready, rider_accepted, rider_at_vendor, out_for_delivery, arrived, delivered, cancelled
+  statusTimestamps: jsonb('status_timestamps').default('{}'), // Tracks when each status was triggered: { "accepted": "2024-01-01T12:00:00Z", "preparing": ... }
   totalAmount: integer('total_amount').notNull(),
   deliveryFee: integer('delivery_fee').notNull().default(0),
   convenienceFee: integer('convenience_fee').notNull().default(0),
