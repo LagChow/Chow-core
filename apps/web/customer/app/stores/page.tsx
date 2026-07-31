@@ -356,11 +356,20 @@ export default function HomePage() {
 
       {/* MOBILE BOTTOM NAVIGATION (Hidden on Desktop) */}
       <nav className="md:hidden fixed bottom-0 w-full bg-card/90 backdrop-blur-xl border-t border-white/5 px-6 py-4 flex justify-between items-center z-50 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-        <div className="flex flex-col items-center gap-1 text-accent cursor-pointer">
+        <Link href="/stores" className="flex flex-col items-center gap-1 text-accent cursor-pointer">
           <Home className="w-6 h-6" strokeWidth={2.5} />
           <span className="text-[10px] font-bold">Home</span>
-        </div>
-        <div className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        </Link>
+        <div 
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => {
+              const input = document.querySelector('input[placeholder="Search for food, drinks..."]') as HTMLInputElement;
+              if (input) input.focus();
+            }, 500);
+          }}
+          className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        >
           <Search className="w-6 h-6" strokeWidth={2.5} />
           <span className="text-[10px] font-semibold">Browse</span>
         </div>
@@ -377,14 +386,14 @@ export default function HomePage() {
             )}
           </div>
         </div>
-        <div className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        <Link href="/saved" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <Heart className="w-6 h-6" strokeWidth={2.5} />
           <span className="text-[10px] font-semibold">Favorites</span>
-        </div>
-        <div className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        </Link>
+        <Link href="/profile" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <User className="w-6 h-6" strokeWidth={2.5} />
           <span className="text-[10px] font-semibold">Profile</span>
-        </div>
+        </Link>
       </nav>
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
