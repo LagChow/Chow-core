@@ -12,7 +12,8 @@ import { Card } from '@/components/ui/card';
 import Image from 'next/image';
 import axios from 'axios';
 
-const UNILAG_HALLS = [
+const UNILAG_LOCATIONS = [
+  // Hostels
   "New Hall (Eni-Njoku)",
   "New Hall (Sodiende)",
   "New Hall (Makama)",
@@ -28,6 +29,21 @@ const UNILAG_HALLS = [
   "Gbaja",
   "Honours",
   "Women Society",
+  
+  // Landmarks
+  "Main Library",
+  "Faculty of Arts",
+  "Faculty of Science",
+  "Faculty of Engineering",
+  "Faculty of Law",
+  "Faculty of Education",
+  "Faculty of Social Sciences",
+  "Faculty of Management Sciences",
+  "Senate Building",
+  "Staff Quarters",
+  "Medical Centre (Jaja)",
+  "Sports Centre",
+  "DLI (Distance Learning Institute)",
   "Other"
 ];
 
@@ -64,8 +80,20 @@ export default function CheckoutPage() {
     phone: "",
     hall: "",
     room: "",
-    note: ""
+    note: "",
+    customAddress: ""
   });
+
+  // Prefill user data
+  useEffect(() => {
+    if (user && !form.hall) {
+      setForm(prev => ({
+        ...prev,
+        hall: user.hallOfResidence || user.landmark || "",
+        room: (user as any).roomNumber || ""
+      }));
+    }
+  }, [user]);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [maxPrepTime, setMaxPrepTime] = useState(15);
 
@@ -159,7 +187,13 @@ export default function CheckoutPage() {
     }
     
     if (!form.hall) {
-      alert("Please select your hall for delivery.");
+      alert("Please select your delivery location.");
+      setShowAddress(true);
+      return;
+    }
+    
+    if (form.hall === "Other" && !form.customAddress) {
+      alert("Please describe your location.");
       setShowAddress(true);
       return;
     }
@@ -187,7 +221,7 @@ export default function CheckoutPage() {
           totalAmount: vTotalAmount,
           deliveryFee: selectedMode ? selectedMode.baseFee : 0, // Fee per vendor
           convenienceFee: getConvenienceFee(vTotalAmount), // Pro-rated or calculated per vendor
-          deliveryAddress: { hall: form.hall, room: form.room },
+          deliveryAddress: { hall: form.hall === "Other" ? form.customAddress : form.hall, room: form.room },
           notes: form.note,
           paymentMethod
         });
@@ -272,7 +306,7 @@ export default function CheckoutPage() {
                           </div>
                           <div className="text-left">
                           <p className="font-bold text-sm">
-                            {form.hall ? `${form.hall}${form.room ? ` - ${form.room}` : ""}` : "Add Delivery Address"}
+                            {form.hall ? (form.hall === "Other" ? (form.customAddress || "Add Delivery Address") : `${form.hall}${form.room ? ` - ${form.room}` : ""}`) : "Add Delivery Address"}
                           </p>
                           <p className="text-xs text-muted-foreground">Campus details</p>
                         </div>
@@ -288,15 +322,22 @@ export default function CheckoutPage() {
                             onChange={(e) => setForm({...form, hall: e.target.value})}
                             className="w-full bg-black/40 border border-white/10 h-12 rounded-xl px-3 outline-none focus:border-accent transition-all text-sm"
                           >
-                            <option value="">Select your hall</option>
-                            {UNILAG_HALLS.map(hall => (
-                              <option key={hall} value={hall}>{hall}</option>
+                            <option value="">Select your location</option>
+                            {UNILAG_LOCATIONS.map(loc => (
+                              <option key={loc} value={loc}>{loc}</option>
                             ))}
                           </select>
                           
-                          {selectedMode && (
+                          {form.hall === "Other" ? (
                             <Input 
-                              placeholder="Room Number (Optional)" 
+                              placeholder="Please describe your location (e.g. Under the tree at...)"
+                              value={form.customAddress}
+                              onChange={(e) => setForm({...form, customAddress: e.target.value})}
+                              className="bg-black/40 border-white/10 h-12 rounded-xl focus-visible:ring-accent text-sm" 
+                            />
+                          ) : selectedMode && (
+                            <Input 
+                              placeholder="Room Number, Wing, or Department (Optional)" 
                               value={form.room}
                               onChange={(e) => setForm({...form, room: e.target.value})}
                               className="bg-black/40 border-white/10 h-12 rounded-xl focus-visible:ring-accent text-sm" 
