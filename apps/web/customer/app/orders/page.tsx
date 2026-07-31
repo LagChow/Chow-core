@@ -44,7 +44,7 @@ export default function OrdersPage() {
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-4xl mx-auto p-4 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="rounded-full hover:bg-white/10">
+          <Button variant="ghost" size="icon" onClick={() => router.push('/stores')} className="rounded-full hover:bg-white/10">
             <ChevronLeft className="w-5 h-5" />
           </Button>
           <h1 className="font-black text-xl tracking-tight">Order History</h1>

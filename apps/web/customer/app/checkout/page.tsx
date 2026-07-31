@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/cart-context';
 import { useUser } from '@/hooks/use-user';
 import { AuthModal } from '@/components/auth-modal';
-import { ChevronLeft, ChevronRight, MapPin, Bike, CalendarDays, Wallet, Globe, User, MessageSquare, Gift, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Bike, CalendarDays, Wallet, Globe, User, MessageSquare, Gift, CheckCircle2, Clock, MoveDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -67,6 +67,7 @@ export default function CheckoutPage() {
     note: ""
   });
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [maxPrepTime, setMaxPrepTime] = useState(15);
 
   // Calculations
   const uniqueVendors = useMemo(() => new Set(items.map(i => i.vendorId)).size, [items]);
@@ -91,13 +92,28 @@ export default function CheckoutPage() {
     async function loadData() {
       setIsLoadingModes(true);
       try {
-        const [vendorRes, modesRes] = await Promise.all([
+        const [vendorRes, modesRes, menuRes] = await Promise.all([
           axios.get(`/api/vendors/${vendorId}`),
-          axios.get(`/api/delivery-modes`)
+          axios.get(`/api/delivery-modes`),
+          axios.get(`/api/menu?vendorId=${vendorId}`)
         ]);
 
-        const vendorData = vendorRes.data;
+        const vendorData = vendorRes.data.vendor || vendorRes.data;
         const modesData = modesRes.data;
+        const menuItems = menuRes.data.items || [];
+
+        // Calculate max prep time
+        let maxPrep = 15;
+        const isHighDemand = vendorData.queueStatus?.demand === 'High' || vendorData.queueStatus?.demand === 'Very High' || vendorData.queueStatus?.status === 'Rush Hour';
+        
+        items.forEach(cartItem => {
+          const dbItem = menuItems.find((i: any) => i.id === cartItem.id);
+          if (dbItem) {
+            const prep = isHighDemand && dbItem.peakPreparationTime ? dbItem.peakPreparationTime : dbItem.preparationTime;
+            if (prep && Number(prep) > maxPrep) maxPrep = Number(prep);
+          }
+        });
+        setMaxPrepTime(maxPrep);
 
           // Mock customer location (Akoka, UNILAG)
           const customerLat = 6.5268;
@@ -378,6 +394,32 @@ export default function CheckoutPage() {
           <div className="w-full lg:w-[400px]">
             <Card className="bg-card/50 backdrop-blur-xl border-white/10 rounded-3xl p-6 lg:p-8 sticky top-24 shadow-2xl">
               
+              <div className="mb-8 border border-white/10 rounded-2xl p-5 bg-black/20">
+                <h3 className="font-bold mb-4 text-white uppercase tracking-wider text-xs">Estimated Timeline</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 text-white/80">
+                    <Clock className="w-4 h-4 text-accent" />
+                    <span className="flex-1 text-sm font-semibold">Preparation</span>
+                    <span className="text-sm font-black">{maxPrepTime} mins</span>
+                  </div>
+                  
+                  <div className="pl-1.5 py-1">
+                    <MoveDown className="w-4 h-4 text-white/20" />
+                  </div>
+                  
+                  <div className="flex items-center gap-3 text-white/80">
+                    <Bike className="w-4 h-4 text-accent" />
+                    <span className="flex-1 text-sm font-semibold">Pickup & Transit</span>
+                    <span className="text-sm font-black">{selectedMode?.estimatedMins || 20} mins</span>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+                    <span className="font-bold text-sm text-white">Total ETA</span>
+                    <span className="font-black text-lg text-accent">{maxPrepTime + (selectedMode?.estimatedMins || 20)} mins</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-4 mb-6">
                 {items.map(item => (
                   <div key={item.id} className="flex gap-4">

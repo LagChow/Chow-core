@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Share, Search, MapPin, Clock, Heart, Star, ShoppingBag, Plus } from 'lucide-react';
+import { ChevronLeft, Share, Search, MapPin, Clock, Heart, Star, ShoppingBag, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -44,6 +44,7 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
   const [loading, setLoading] = useState(true);
   const { addItem, totalItems, totalAmount, setIsCartOpen } = useCart();
   const [now, setNow] = useState(Date.now());
+  const [selectedMeal, setSelectedMeal] = useState<any>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -226,10 +227,17 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
                       const s = Math.floor((diff % 60000) / 1000);
                       restockingText = `${m}m ${s}s`;
                     }
-                    const isUnavailable = item.isAvailable === false && !isRestocking;
+                    // If restockTime is in the past (timer completed), it falls back to Available!
+                    const isUnavailable = item.isAvailable === false && !item.restockTime;
 
                     return (
-                      <Card key={item.id} className={`group border border-white/5 bg-gradient-to-br from-white/[0.04] to-transparent hover:from-white/[0.08] hover:to-white/[0.02] hover:border-white/20 transition-all duration-300 overflow-hidden rounded-[24px] flex flex-row shadow-xl hover:shadow-[0_10px_40px_rgba(0,0,0,0.3)] relative ${isUnavailable ? 'opacity-50 grayscale pointer-events-none' : 'cursor-pointer'}`}>
+                      <Card 
+                        key={item.id} 
+                        onClick={() => {
+                          if (!isUnavailable) setSelectedMeal({ ...item, activePrepTime, isRestocking, restockingText });
+                        }}
+                        className={`group border border-white/5 bg-gradient-to-br from-white/[0.04] to-transparent hover:from-white/[0.08] hover:to-white/[0.02] hover:border-white/20 transition-all duration-300 overflow-hidden rounded-[24px] flex flex-row shadow-xl hover:shadow-[0_10px_40px_rgba(0,0,0,0.3)] relative ${isUnavailable ? 'opacity-50 grayscale pointer-events-none' : 'cursor-pointer'}`}
+                      >
                         {/* Item Details */}
                         <div className="flex-1 p-5 flex flex-col justify-between z-10">
                           <div>
@@ -240,10 +248,23 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
                             )}
                             <h3 className="font-bold text-lg leading-tight mb-2 group-hover:text-accent transition-colors">{item.name}</h3>
                             <p className="text-sm text-white/60 line-clamp-2 leading-relaxed">{item.description}</p>
-                            {activePrepTime && (
-                              <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold text-white/50">
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>Prep time: {activePrepTime} mins</span>
+                            
+                            {activePrepTime && !isRestocking && !isUnavailable && (
+                              <div className="flex items-center gap-2 mt-3 mb-1">
+                                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                                <span className="text-xs font-bold text-white/80">Available <span className="text-white/40 font-normal mx-1">•</span> Ready in ~{activePrepTime} mins</span>
+                              </div>
+                            )}
+                            {isRestocking && (
+                              <div className="flex items-center gap-2 mt-3 mb-1">
+                                <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_8px_rgba(250,204,21,0.6)] animate-pulse"></div>
+                                <span className="text-xs font-bold text-accent">Preparing <span className="text-accent/60 font-normal mx-1">•</span> Ready in ~<span className="tabular-nums font-mono">{restockingText}</span></span>
+                              </div>
+                            )}
+                            {isUnavailable && (
+                              <div className="flex items-center gap-2 mt-3 mb-1">
+                                <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
+                                <span className="text-xs font-bold text-red-500 uppercase tracking-wider">Sold Out</span>
                               </div>
                             )}
                           </div>
@@ -276,24 +297,6 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
                             <Image src={item.image} alt={item.name} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
                           </div>
                         </div>
-                        
-                        {/* Restocking Overlay */}
-                        {isRestocking && (
-                          <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center pointer-events-none">
-                            <div className="bg-black/80 border border-white/10 rounded-xl px-4 py-2 flex flex-col items-center shadow-xl">
-                              <span className="text-white font-bold text-sm mb-1 uppercase tracking-wider">Preparing</span>
-                              <div className="flex items-center gap-2 text-accent font-black">
-                                <Clock className="w-4 h-4 animate-pulse" />
-                                <span className="tabular-nums font-mono">Ready in {restockingText}</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        {isUnavailable && (
-                          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-                            <Badge variant="destructive" className="font-bold text-sm py-1 shadow-xl">Sold Out</Badge>
-                          </div>
-                        )}
                       </Card>
                     );
                   })
@@ -318,6 +321,81 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
         </div>
       )}
 
+      {/* Meal Details Modal */}
+      {selectedMeal && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setSelectedMeal(null)}>
+          <div className="w-full sm:w-[450px] bg-[#111] border border-white/10 sm:rounded-[32px] rounded-t-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="relative w-full h-[250px] sm:h-[300px] shrink-0">
+              <Image src={selectedMeal.image} alt={selectedMeal.name} fill className="object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#111] to-transparent"></div>
+              <button 
+                onClick={() => setSelectedMeal(null)}
+                className="absolute top-4 right-4 w-10 h-10 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white hover:bg-black/60 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 pt-0 flex-1 overflow-y-auto relative -mt-8 z-10">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-black leading-tight pr-4">{selectedMeal.name}</h2>
+                <span className="font-black text-2xl text-accent shrink-0">₦{selectedMeal.price.toLocaleString()}</span>
+              </div>
+              
+              {selectedMeal.rating && (
+                <div className="flex items-center gap-1 mb-6 text-accent">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className={`w-4 h-4 ${i < Math.floor(selectedMeal.rating) ? 'fill-accent' : 'text-white/20'}`} />
+                  ))}
+                  <span className="text-white/80 font-medium ml-2 text-sm">{selectedMeal.rating}</span>
+                </div>
+              )}
+
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-3 h-3 rounded-full shadow-[0_0_12px_currentColor] ${selectedMeal.isRestocking ? 'bg-accent text-accent animate-pulse' : 'bg-green-500 text-green-500'}`}></div>
+                  <h4 className="font-bold text-white uppercase tracking-wider text-xs">Status</h4>
+                </div>
+                <p className="text-lg font-black mb-1">
+                  {selectedMeal.isRestocking ? '🟡 Currently Being Prepared' : '🟢 Available to Order'}
+                </p>
+                <p className="text-sm font-semibold text-white/60">
+                  Estimated Ready Time: <span className="text-white">{selectedMeal.isRestocking ? selectedMeal.restockingText : `${selectedMeal.activePrepTime} minutes`}</span>
+                </p>
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-xs text-white/40 italic">Note: Your order will begin delivery immediately after preparation is complete.</p>
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <h4 className="font-bold mb-2">Description</h4>
+                <p className="text-white/60 text-sm leading-relaxed">{selectedMeal.description}</p>
+              </div>
+
+            </div>
+            
+            <div className="p-5 border-t border-white/10 bg-[#111] shrink-0">
+              <Button 
+                disabled={selectedMeal.isRestocking}
+                onClick={() => {
+                  addItem({
+                    id: selectedMeal.id,
+                    name: selectedMeal.name,
+                    price: selectedMeal.price,
+                    vendorId: vendor.id,
+                    vendorName: vendor.name,
+                    image: selectedMeal.image
+                  });
+                  setSelectedMeal(null);
+                }}
+                className="w-full h-14 bg-accent text-black font-black text-lg rounded-2xl shadow-[0_0_20px_rgba(250,204,21,0.2)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {selectedMeal.isRestocking ? 'Still Preparing...' : `Add to Cart - ₦${selectedMeal.price.toLocaleString()}`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

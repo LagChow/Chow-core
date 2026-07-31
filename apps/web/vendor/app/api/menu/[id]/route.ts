@@ -8,6 +8,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const body = await req.json();
 
+    // Drizzle expects a Date object for timestamp columns
+    if (body.restockTime !== undefined && body.restockTime !== null) {
+      body.restockTime = new Date(body.restockTime);
+    }
+
     const [updatedItem] = await db
       .update(items)
       .set(body)
