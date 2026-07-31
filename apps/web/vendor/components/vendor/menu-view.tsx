@@ -13,6 +13,7 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
   const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
   
   // Search & Filter State
   const [search, setSearch] = useState('');
@@ -97,6 +98,33 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
     }
   };
 
+  const handleEditStart = (item: any) => {
+    const prepTimeStr = String(item.preparationTime || 15);
+    const prepTimeOptions = ['5', '10', '15', '20', '25', '30', '45', '60'];
+    const isCustomPrepTime = !prepTimeOptions.includes(prepTimeStr);
+
+    setFormData({
+      name: item.name || '',
+      price: String(item.price || ''),
+      description: item.description || '',
+      categoryId: item.categoryId || '',
+      image: item.image || '',
+      preparationTime: isCustomPrepTime ? 'custom' : prepTimeStr,
+      customPrepTime: isCustomPrepTime ? prepTimeStr : '',
+      peakPreparationTime: String(item.peakPreparationTime || '25'),
+      isAvailable: item.isAvailable !== false,
+      mealType: item.mealType || 'single',
+      comboIncludes: item.comboIncludes?.length > 0 ? item.comboIncludes : [''],
+      portionSize: item.portionSize || 'regular',
+      dailyQuantityMode: item.dailyQuantity != null ? 'limited' : 'unlimited',
+      dailyQuantity: item.dailyQuantity != null ? String(item.dailyQuantity) : '',
+      tags: item.tags || [],
+      visibility: item.visibility || 'published',
+    });
+    setEditingItem(item);
+    setIsAdding(true);
+  };
+
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -119,14 +147,23 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
         tags: formData.tags,
         visibility: formData.visibility
       };
+
+      if (editingItem) {
+        // Update existing item
+        const res = await axios.patch(`/api/menu/${editingItem.id}`, payload);
+        setItems(prev => prev.map(i => i.id === editingItem.id ? res.data : i));
+      } else {
+        // Create new item
+        const res = await axios.post('/api/menu', payload);
+        setItems(prev => [res.data, ...prev]);
+      }
       
-      const res = await axios.post('/api/menu', payload);
-      setItems(prev => [res.data, ...prev]);
       setIsAdding(false);
+      setEditingItem(null);
       resetForm();
     } catch (e) {
-      console.error("Failed to add item", e);
-      alert("Failed to add item");
+      console.error("Failed to save item", e);
+      alert(editingItem ? "Failed to update item" : "Failed to add item");
     }
   };
 
@@ -137,6 +174,7 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
       mealType: 'single', comboIncludes: [''], portionSize: 'regular', dailyQuantityMode: 'unlimited',
       dailyQuantity: '', tags: [], visibility: 'published'
     });
+    setEditingItem(null);
   };
 
   const handleCreateCategory = async () => {
@@ -224,6 +262,12 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
   const prepTimeOptions = ['5', '10', '15', '20', '25', '30', '45', '60'];
   const allTags = ['Best Seller', 'Popular', 'Spicy', 'Healthy', 'High Protein', 'Includes Drink', 'Vegetarian'];
 
+  const handleFormClose = () => {
+    setIsAdding(false);
+    setEditingItem(null);
+    resetForm();
+  };
+
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -232,7 +276,7 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
           <p className="text-sm text-muted-foreground mt-1">Manage your meals, pricing, and availability.</p>
         </div>
         <Button 
-          onClick={() => { setIsAdding(!isAdding); if (!isAdding) resetForm(); }}
+          onClick={() => { if (isAdding) { handleFormClose(); } else { resetForm(); setIsAdding(true); } }}
           className="bg-accent text-black font-bold hover:bg-accent/90 shrink-0"
         >
           {isAdding ? 'Cancel' : <><Plus className="w-4 h-4 mr-2" /> Add New Meal</>}
@@ -243,8 +287,8 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
         <Card className="p-6 bg-card/60 border-accent/20 rounded-2xl mb-6 shadow-2xl">
           <form onSubmit={handleAddSubmit} className="space-y-8">
             <div className="flex items-center justify-between border-b border-white/5 pb-4">
-              <h3 className="font-bold text-xl text-white">Create a New Meal</h3>
-              <Button type="button" variant="ghost" onClick={() => setIsAdding(false)}><X className="w-5 h-5"/></Button>
+              <h3 className="font-bold text-xl text-white">{editingItem ? 'Edit Meal' : 'Create a New Meal'}</h3>
+              <Button type="button" variant="ghost" onClick={handleFormClose}><X className="w-5 h-5"/></Button>
             </div>
             
             {/* 1. Meal Photo */}
@@ -436,8 +480,10 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
               </label>
               
               <div className="flex gap-3 w-full sm:w-auto">
-                <Button type="button" variant="ghost" onClick={() => setIsAdding(false)} className="flex-1 sm:flex-none">Cancel</Button>
-                <Button type="submit" disabled={categories.length === 0} className="flex-1 sm:flex-none bg-accent text-black font-bold">Save Meal</Button>
+                <Button type="button" variant="ghost" onClick={handleFormClose} className="flex-1 sm:flex-none">Cancel</Button>
+                <Button type="submit" disabled={categories.length === 0} className="flex-1 sm:flex-none bg-accent text-black font-bold">
+                  {editingItem ? 'Save Changes' : 'Save Meal'}
+                </Button>
               </div>
             </div>
           </form>
@@ -542,7 +588,7 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
                   </div>
                   
                   <div className="mt-auto pt-4 border-t border-white/5 flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="flex-1 text-xs font-bold bg-white/5 hover:bg-white/10"><Edit2 className="w-3 h-3 mr-1"/> Edit</Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleEditStart(item)} className="flex-1 text-xs font-bold bg-white/5 hover:bg-white/10"><Edit2 className="w-3 h-3 mr-1"/> Edit</Button>
                     <Button 
                       variant="ghost" size="sm"
                       onClick={() => handleToggleStock(item.id, item.isAvailable)}
@@ -571,3 +617,4 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
     </div>
   );
 }
+

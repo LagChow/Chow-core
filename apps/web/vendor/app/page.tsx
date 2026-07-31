@@ -119,7 +119,7 @@ export default function VendorDashboard() {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto pb-24 md:pb-0 relative">
+      <main className="flex-1 overflow-y-auto pb-32 md:pb-0 relative">
         {activeTab === 'orders' && <OrdersView vendorId={vendorId} />}
         {activeTab === 'menu' && <MenuView vendorId={vendorId} />}
         {activeTab === 'analytics' && <AnalyticsView vendorId={vendorId} />}
