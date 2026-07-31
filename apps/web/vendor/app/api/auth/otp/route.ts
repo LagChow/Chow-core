@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { db, vendors, verificationTokens, eq } from '@lagchow/database';
+import { db, verificationTokens, vendors, eq } from '@lagchow/database';
 import { Resend } from 'resend';
+import { cookies } from 'next/headers';
+import { signToken } from '@/lib/jwt';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -102,6 +104,24 @@ export async function POST(req: Request) {
 
       // Delete the used token
       await db.delete(verificationTokens).where(eq(verificationTokens.identifier, email));
+
+      // Generate JWT for the vendor
+      const token = await signToken({
+        id: vendor.id,
+        vendorId: vendor.id,
+        email: vendor.email,
+        role: 'vendor'
+      });
+
+      // Set HTTP-only cookie
+      const cookieStore = await cookies();
+      cookieStore.set('__session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60, // 7 days
+      });
 
       // Return vendorId
       return NextResponse.json({ success: true, vendorId: vendor.id });

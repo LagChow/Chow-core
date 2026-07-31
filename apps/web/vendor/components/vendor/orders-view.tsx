@@ -8,13 +8,17 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
-type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'ready' | 'rider_accepted' | 'rider_at_vendor' | 'out_for_delivery' | 'arrived' | 'delivered' | 'cancelled';
 
 const TABS: { id: OrderStatus, label: string }[] = [
-  { id: 'pending', label: 'New Orders' },
+  { id: 'pending', label: 'New' },
   { id: 'accepted', label: 'Accepted' },
-  { id: 'preparing', label: 'Preparing' },
-  { id: 'out_for_delivery', label: 'Ready for Pickup' },
+  { id: 'preparing', label: 'Cooking' },
+  { id: 'ready', label: 'Ready' },
+  { id: 'rider_accepted', label: 'Rider Assig.' },
+  { id: 'rider_at_vendor', label: 'Rider Wait.' },
+  { id: 'out_for_delivery', label: 'En Route' },
+  { id: 'arrived', label: 'Arrived' },
   { id: 'delivered', label: 'Completed' }
 ];
 
@@ -56,8 +60,12 @@ export default function OrdersView({ vendorId }: { vendorId: string }) {
     let nextStatus: OrderStatus = 'pending';
     if (currentStatus === 'pending') nextStatus = 'accepted';
     else if (currentStatus === 'accepted') nextStatus = 'preparing';
-    else if (currentStatus === 'preparing') nextStatus = 'out_for_delivery';
-    else if (currentStatus === 'out_for_delivery') nextStatus = 'delivered';
+    else if (currentStatus === 'preparing') nextStatus = 'ready';
+    else if (currentStatus === 'ready') nextStatus = 'rider_accepted';
+    else if (currentStatus === 'rider_accepted') nextStatus = 'rider_at_vendor';
+    else if (currentStatus === 'rider_at_vendor') nextStatus = 'out_for_delivery';
+    else if (currentStatus === 'out_for_delivery') nextStatus = 'arrived';
+    else if (currentStatus === 'arrived') nextStatus = 'delivered';
 
     setActionLoading(orderId);
     try {
@@ -209,7 +217,6 @@ export default function OrdersView({ vendorId }: { vendorId: string }) {
                       {actionLoading === order.id ? <Loader2 className="w-5 h-5 animate-spin" /> : "Accept Order"}
                     </Button>
                   )}
-
                   {order.status === 'accepted' && (
                     <Button 
                       onClick={() => handleOneTapUpdate(order.id, order.status)}
@@ -219,7 +226,6 @@ export default function OrdersView({ vendorId }: { vendorId: string }) {
                       {actionLoading === order.id ? <Loader2 className="w-5 h-5 animate-spin" /> : `Preparing (${prepTime} mins)`}
                     </Button>
                   )}
-
                   {order.status === 'preparing' && (
                     <div className="space-y-2">
                       <div className="flex items-start gap-2 p-2 bg-white/5 rounded-lg border border-white/10 text-xs text-muted-foreground">
@@ -231,12 +237,47 @@ export default function OrdersView({ vendorId }: { vendorId: string }) {
                         disabled={actionLoading === order.id}
                         className="w-full bg-orange-500 hover:bg-orange-400 text-white font-black h-12 shadow-[0_0_20px_rgba(249,115,22,0.3)] hover:scale-[1.02] transition-all"
                       >
-                        {actionLoading === order.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <> <Bike className="w-4 h-4 mr-2"/> Ready for Pickup </>}
+                        {actionLoading === order.id ? <Loader2 className="w-5 h-5 animate-spin" /> : "Mark as Ready"}
                       </Button>
                     </div>
                   )}
-
+                  {order.status === 'ready' && (
+                    <Button 
+                      onClick={() => handleOneTapUpdate(order.id, order.status)}
+                      disabled={actionLoading === order.id}
+                      className="w-full bg-indigo-500 hover:bg-indigo-400 text-white font-black h-12 shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:scale-[1.02] transition-all"
+                    >
+                      {actionLoading === order.id ? <Loader2 className="w-5 h-5 animate-spin" /> : "Rider Accepted"}
+                    </Button>
+                  )}
+                  {order.status === 'rider_accepted' && (
+                    <Button 
+                      onClick={() => handleOneTapUpdate(order.id, order.status)}
+                      disabled={actionLoading === order.id}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black h-12 shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:scale-[1.02] transition-all"
+                    >
+                      {actionLoading === order.id ? <Loader2 className="w-5 h-5 animate-spin" /> : "Rider At Vendor"}
+                    </Button>
+                  )}
+                  {order.status === 'rider_at_vendor' && (
+                    <Button 
+                      onClick={() => handleOneTapUpdate(order.id, order.status)}
+                      disabled={actionLoading === order.id}
+                      className="w-full bg-purple-500 hover:bg-purple-400 text-white font-black h-12 shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:scale-[1.02] transition-all"
+                    >
+                      {actionLoading === order.id ? <Loader2 className="w-5 h-5 animate-spin" /> : "Rider Picked Up"}
+                    </Button>
+                  )}
                   {order.status === 'out_for_delivery' && (
+                    <Button 
+                      onClick={() => handleOneTapUpdate(order.id, order.status)}
+                      disabled={actionLoading === order.id}
+                      className="w-full bg-teal-500 hover:bg-teal-400 text-white font-black h-12 shadow-[0_0_20px_rgba(20,184,166,0.3)] hover:scale-[1.02] transition-all"
+                    >
+                      {actionLoading === order.id ? <Loader2 className="w-5 h-5 animate-spin" /> : "Order Arrived"}
+                    </Button>
+                  )}
+                  {order.status === 'arrived' && (
                     <Button 
                       onClick={() => handleOneTapUpdate(order.id, order.status)}
                       disabled={actionLoading === order.id}

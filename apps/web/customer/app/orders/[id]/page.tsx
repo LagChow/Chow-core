@@ -9,11 +9,15 @@ import axios from 'axios';
 import Image from 'next/image';
 
 const STATUS_STEPS = [
-  { id: 'pending', label: 'Order Placed', desc: "We've sent your order to the vendor. The vendor usually confirms within 2–3 minutes." },
-  { id: 'accepted', label: 'Accepted', desc: 'Vendor has accepted your order' },
-  { id: 'preparing', label: 'Preparing', desc: 'Your food is being prepared' },
-  { id: 'out_for_delivery', label: 'Out for Delivery', desc: 'Rider is on the way' },
-  { id: 'delivered', label: 'Delivered', desc: 'Enjoy your meal!' },
+  { id: 'pending', label: 'Order Received', desc: 'We have received your order and are waiting for the vendor to accept it.' },
+  { id: 'accepted', label: 'Order Accepted', desc: 'The vendor has accepted your order.' },
+  { id: 'preparing', label: 'Preparing your order', desc: 'The vendor is currently preparing your food.' },
+  { id: 'ready', label: 'Order Ready', desc: 'Your order is packed and ready.' },
+  { id: 'rider_accepted', label: 'Rider accepted order', desc: 'A rider has been assigned and is heading to the vendor.' },
+  { id: 'rider_at_vendor', label: 'Rider at the vendor', desc: 'The rider is waiting at the vendor to pick up your order.' },
+  { id: 'out_for_delivery', label: 'Rider picked up order', desc: 'Your order is on the way to you.' },
+  { id: 'arrived', label: 'Order arrived', desc: 'The rider has arrived at your location.' },
+  { id: 'delivered', label: 'Order delivered', desc: 'Enjoy your meal!' },
 ];
 
 const queueColorMap: Record<string, any> = {
@@ -116,9 +120,11 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
                 <span className="text-xs text-white/50">Order #LC-{order.id.slice(0, 4).toUpperCase()}</span>
               </div>
               <h2 className="font-black text-2xl mb-1">{isCancelled ? 'Order Cancelled' : STATUS_STEPS[Math.max(0, currentStatusIndex)]?.label}</h2>
-              <p className="text-xs font-semibold text-muted-foreground mb-4">
-                {isCancelled ? 'This order was cancelled.' : STATUS_STEPS[Math.max(0, currentStatusIndex)]?.desc}
-              </p>
+              {isCancelled && (
+                <p className="text-xs font-semibold text-muted-foreground mb-4">
+                  This order was cancelled.
+                </p>
+              )}
               
               {!isCancelled && order.status !== 'delivered' && (() => {
                 const qColor = queueColorMap[order.vendor?.queueStatus?.color] || queueColorMap.yellow;
@@ -155,25 +161,32 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
               {STATUS_STEPS.map((step, index) => {
                 const isActive = index === currentStatusIndex;
                 const isCompleted = index <= currentStatusIndex;
+                
+                // Format the time from statusTimestamps
+                let timeString = '';
+                if (isCompleted && order.statusTimestamps && order.statusTimestamps[step.id]) {
+                  timeString = new Date(order.statusTimestamps[step.id]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase();
+                } else if (index === 0 && order.createdAt) {
+                  timeString = new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase();
+                }
 
                 return (
                   <div key={step.id} className="flex gap-4 relative">
                     {/* Vertical line connector */}
                     {index !== STATUS_STEPS.length - 1 && (
-                      <div className={`absolute left-3 top-8 w-0.5 h-full -ml-[1px] ${isCompleted ? 'bg-accent/50' : 'bg-white/10'}`} />
+                      <div className={`absolute left-3 top-8 w-1 h-full -ml-[2px] ${isCompleted && !isActive ? 'bg-accent/80' : 'bg-white/5'}`} />
                     )}
                     
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 mt-0.5 z-10 transition-colors
-                      ${isActive ? 'border-accent bg-accent/20 text-accent shadow-[0_0_10px_rgba(250,204,21,0.5)]' : 
-                        isCompleted ? 'border-accent bg-accent text-black' : 'border-white/20 bg-white/5 text-transparent'}`}
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10 transition-colors mt-0.5
+                      ${isActive ? 'bg-accent shadow-[0_0_15px_rgba(250,204,21,0.6)]' : 
+                        isCompleted ? 'bg-accent/80' : 'bg-white/10'}`}
                     >
-                      {isCompleted && !isActive && <CheckCircle2 className="w-4 h-4" />}
-                      {isActive && <div className="w-2 h-2 rounded-full bg-accent" />}
+                      <div className={`w-2.5 h-2.5 rounded-full ${isActive || isCompleted ? 'bg-black' : 'bg-transparent'}`} />
                     </div>
                     
-                    <div className={`pt-0.5 ${isActive ? 'opacity-100' : isCompleted ? 'opacity-90' : 'opacity-60'}`}>
-                      <h4 className={`font-bold text-sm ${isActive ? 'text-accent' : ''}`}>{step.label}</h4>
-                      <p className="text-xs mt-0.5">{step.desc}</p>
+                    <div className={`pt-0.5 flex-1 flex items-center gap-2 ${isActive ? 'opacity-100' : isCompleted ? 'opacity-80' : 'opacity-40'}`}>
+                      <h4 className={`text-base ${isActive || isCompleted ? 'font-bold' : 'font-medium'}`}>{step.label}</h4>
+                      {timeString && <span className="text-muted-foreground text-sm font-medium">• {timeString}</span>}
                     </div>
                   </div>
                 );

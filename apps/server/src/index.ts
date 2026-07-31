@@ -7,7 +7,7 @@ import { jwtVerify } from 'jose';
 import cookie from 'cookie';
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fallback_secret_for_development_only_123'
+  process.env.JWT_SECRET || 'YF8LEghqw1aJBbwHJaMMdXRgu9AJ4lFe27d742JEiTY'
 );
 
 const app = express();
