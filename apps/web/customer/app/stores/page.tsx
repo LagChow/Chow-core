@@ -229,36 +229,6 @@ export default function HomePage() {
       {/* MAIN CONTENT AREA */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-10 mt-4 sm:mt-6">
         
-        {/* QUICK FILTERS */}
-        <section className="flex items-center gap-3">
-          <Button variant="outline" className="rounded-full border-white/10 hover:bg-white/5 text-foreground h-10 px-4 flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            <span className="font-semibold text-sm">All Filters</span>
-          </Button>
-          <ScrollArea className="flex-1 whitespace-nowrap">
-            <div className="flex w-max space-x-2">
-              {[
-                { label: 'Discounts', icon: '🏷️' },
-                { label: 'Delivery fee', icon: '🛵', hasDropdown: true },
-                { label: 'Open now', icon: '⏰' },
-                { label: 'Pickup', icon: '🛍️' },
-                { label: 'Ratings', icon: '⭐', hasDropdown: true },
-                { label: 'Under 30 mins', icon: '⏳' },
-              ].map((filter) => (
-                <Button 
-                  key={filter.label} 
-                  variant="outline"
-                  className="rounded-full border-white/5 bg-card hover:bg-white/10 text-muted-foreground hover:text-foreground h-10 px-4 flex items-center gap-2 transition-colors"
-                >
-                  <span className="text-sm">{filter.icon}</span>
-                  <span className="font-semibold text-sm">{filter.label}</span>
-                  {filter.hasDropdown && <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-50" />}
-                </Button>
-              ))}
-            </div>
-            <ScrollBar orientation="horizontal" className="invisible" />
-          </ScrollArea>
-        </section>
 
         {/* FEATURED / HERO PROMO SECTION */}
         <section className="relative overflow-hidden rounded-3xl bg-card border border-white/5 text-white p-6 sm:p-12 shadow-2xl min-h-[160px] sm:min-h-[200px] flex items-center">
