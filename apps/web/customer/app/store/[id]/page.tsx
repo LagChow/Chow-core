@@ -243,7 +243,7 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
                             {activePrepTime && (
                               <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold text-white/50">
                                 <Clock className="w-3.5 h-3.5" />
-                                <span>{activePrepTime} mins</span>
+                                <span>Prep time: {activePrepTime} mins</span>
                               </div>
                             )}
                           </div>
