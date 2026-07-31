@@ -52,22 +52,30 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
   }, []);
   
   useEffect(() => {
-    fetch(`/api/vendors/${resolvedParams.id}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.vendor) {
-          // Parse rating for frontend
-          setVendor({
-            ...data.vendor,
-            rating: parseFloat(data.vendor.rating)
-          });
-        }
-        setLoading(false);
-      })
-      .catch(e => {
-        console.error(e);
-        setLoading(false);
-      });
+    const fetchVendorData = () => {
+      fetch(`/api/vendors/${resolvedParams.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.vendor) {
+            // Parse rating for frontend
+            setVendor({
+              ...data.vendor,
+              rating: parseFloat(data.vendor.rating)
+            });
+          }
+          setLoading(false);
+        })
+        .catch(e => {
+          console.error(e);
+          setLoading(false);
+        });
+    };
+
+    fetchVendorData(); // Fetch immediately on mount
+    
+    // Poll every 10 seconds to auto-update stock/queue statuses!
+    const pollInterval = setInterval(fetchVendorData, 10000);
+    return () => clearInterval(pollInterval);
   }, [resolvedParams.id]);
 
   if (loading) {
