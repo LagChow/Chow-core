@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
-import { Plus, Edit2, Trash2, Image as ImageIcon, Loader2, Search, Filter, ChevronDown, Check, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Image as ImageIcon, Loader2, Search, Filter, ChevronDown, Check, X, Clock, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,11 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
 
   // Bulk Actions State
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+
+  // Stock Modal State
+  const [stockModalItem, setStockModalItem] = useState<any | null>(null);
+  const [stockModalType, setStockModalType] = useState<'preparing' | 'outofstock'>('preparing');
+  const [stockModalTime, setStockModalTime] = useState('20');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -67,9 +72,21 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
   }, [vendorId]);
 
   const handleToggleStock = async (id: string, currentStatus: boolean) => {
+    if (currentStatus === true) {
+      // Currently available, making it unavailable: show modal
+      setStockModalItem(items.find(i => i.id === id));
+      setStockModalType('preparing');
+      setStockModalTime('20');
+    } else {
+      // Currently unavailable, make it available instantly
+      updateItemStock(id, true, null);
+    }
+  };
+
+  const updateItemStock = async (id: string, newStatus: boolean, restockTime: Date | null) => {
     try {
-      setItems(prev => prev.map(i => i.id === id ? { ...i, isAvailable: !currentStatus } : i));
-      await axios.patch(`/api/menu/${id}`, { isAvailable: !currentStatus });
+      setItems(prev => prev.map(i => i.id === id ? { ...i, isAvailable: newStatus, restockTime } : i));
+      await axios.patch(`/api/menu/${id}`, { isAvailable: newStatus, restockTime });
     } catch (e) {
       console.error(e);
       fetchMenu();
@@ -270,6 +287,72 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
 
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
+      {/* Stock Toggle Modal */}
+      {stockModalItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className="w-full max-w-md bg-[#111] border-white/10 shadow-2xl p-6 rounded-3xl relative overflow-hidden">
+            <h3 className="text-xl font-black mb-1">Item Status</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              You are turning off <strong className="text-white">{stockModalItem.name}</strong>. Why is it unavailable?
+            </p>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <button 
+                onClick={() => setStockModalType('preparing')}
+                className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${stockModalType === 'preparing' ? 'border-accent bg-accent/10 text-accent' : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'}`}
+              >
+                <Clock className="w-6 h-6 mb-2" />
+                <span className="font-bold text-sm">Preparing</span>
+              </button>
+              <button 
+                onClick={() => setStockModalType('outofstock')}
+                className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${stockModalType === 'outofstock' ? 'border-red-500 bg-red-500/10 text-red-500' : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'}`}
+              >
+                <XCircle className="w-6 h-6 mb-2" />
+                <span className="font-bold text-sm">Out of Stock</span>
+              </button>
+            </div>
+
+            {stockModalType === 'preparing' && (
+              <div className="space-y-2 animate-in slide-in-from-bottom-2 fade-in mb-6">
+                <label className="text-xs font-bold uppercase tracking-wider text-white/70">Estimated Restock Time (Minutes)</label>
+                <Input 
+                  type="number" 
+                  value={stockModalTime} 
+                  onChange={e => setStockModalTime(e.target.value)} 
+                  className="bg-black border-white/20 h-12 text-lg text-center font-bold" 
+                />
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-8">
+              <Button 
+                variant="ghost" 
+                className="flex-1 border border-white/10"
+                onClick={() => setStockModalItem(null)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                className="flex-1 bg-accent text-black font-black"
+                onClick={() => {
+                  if (stockModalType === 'preparing') {
+                    const mins = Number(stockModalTime);
+                    const restockDate = mins > 0 ? new Date(Date.now() + mins * 60000) : null;
+                    updateItemStock(stockModalItem.id, false, restockDate);
+                  } else {
+                    updateItemStock(stockModalItem.id, false, null);
+                  }
+                  setStockModalItem(null);
+                }}
+              >
+                Confirm
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black">Menu Management</h2>

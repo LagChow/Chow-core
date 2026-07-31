@@ -129,7 +129,7 @@ export default function CheckoutPage() {
   // If cart is empty, redirect home
   useEffect(() => {
     if (items.length === 0) {
-      router.push("/");
+      router.push("/stores");
     }
   }, [items, router]);
 

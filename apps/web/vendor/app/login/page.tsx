@@ -87,7 +87,7 @@ export default function VendorLogin() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     placeholder="vendor@lagchow.com"
-                    className="w-full bg-black/40 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+                    className="w-full bg-black/40 border border-white/20 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-white/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
                   />
                 </div>
               </div>
@@ -115,7 +115,7 @@ export default function VendorLogin() {
                     onChange={(e) => setOtp(e.target.value)}
                     required
                     placeholder="000000"
-                    className="w-full bg-black/40 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all text-center tracking-[0.5em] font-mono text-lg"
+                    className="w-full bg-black/40 border border-white/20 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-white/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all text-center tracking-[0.5em] font-mono text-lg"
                     maxLength={6}
                   />
                 </div>
