@@ -22,10 +22,9 @@ const queueColorMap: Record<string, any> = {
 };
 
 export default function HomePage() {
-  const { totalItems, setIsCartOpen } = useCart();
+  const { totalItems, setIsCartOpen, deliveryLocation: activeAddress, setDeliveryLocation: setActiveAddress } = useCart();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
-  const [activeAddress, setActiveAddress] = useState('New Hall Unilag, Akoka 101245, Lagos, Nigeria');
   const { user, loading } = useUser();
   const [searchQuery, setSearchQuery] = useState('');
   const [savedVendorIds, setSavedVendorIds] = useState<string[]>([]);
@@ -107,54 +106,43 @@ export default function HomePage() {
       
       {/* HEADER SECTION (Desktop & Mobile) */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-4">
           
-          {/* Left: Brand & Location */}
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-black tracking-tighter text-accent hidden md:block">LagChow<span className="text-foreground">.</span></h1>
-            
-            <div 
-              className="flex items-center gap-3 cursor-pointer hover:bg-white/5 p-2 rounded-xl transition-colors"
-              onClick={() => setIsDeliveryModalOpen(true)}
-            >
-              <div className="p-2 bg-accent/20 text-accent rounded-full">
-                <MapPin className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] text-muted-foreground font-semibold tracking-wide uppercase">Deliver to</span>
-                <span className="text-sm font-bold truncate max-w-[150px] sm:max-w-[200px] text-foreground">{activeAddress.split(',')[0]}</span>
-                <div className="md:hidden relative mt-4">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search for food..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 h-12 bg-white/5 border-white/10 rounded-2xl focus-visible:ring-accent"
-                  />
+            {/* Left: Brand & Location */}
+            <div className="flex items-center gap-4 sm:gap-6">
+              <h1 className="text-2xl font-black tracking-tighter text-accent hidden md:block">LagChow<span className="text-foreground">.</span></h1>
+              
+              <div 
+                className="flex items-center gap-2 sm:gap-3 cursor-pointer hover:bg-white/5 p-1.5 sm:p-2 rounded-xl transition-colors"
+                onClick={() => setIsDeliveryModalOpen(true)}
+              >
+                <div className="p-2 bg-accent/20 text-accent rounded-full shrink-0">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-muted-foreground font-semibold tracking-wide uppercase">Deliver to</span>
+                  <span className="text-sm font-bold truncate max-w-[140px] sm:max-w-[200px] text-foreground">{activeAddress.split(',')[0]}</span>
                 </div>
               </div>
             </div>
-          </div>
-          
-          {/* Middle: Search Bar (Desktop) */}
-          <div className="flex-1 max-w-xl mx-8 hidden md:block relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input 
-              placeholder="Search for food, drinks, groceries etc..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 h-12 bg-white/5 border-white/10 rounded-2xl focus-visible:ring-accent"
-            />
-            <Button className="absolute right-1 top-1 h-10 rounded-xl bg-accent hover:bg-accent/90 text-black font-bold px-6">
-              Search
-            </Button>
-          </div>
-          
-          {/* Right: Actions */}
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Button variant="ghost" size="icon" className="md:hidden text-foreground">
-              <Search className="w-5 h-5" />
-            </Button>
+            
+            {/* Middle: Search Bar (Desktop) */}
+            <div className="flex-1 max-w-xl mx-8 hidden md:block relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input 
+                placeholder="Search for food, drinks, groceries etc..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 h-12 bg-white/5 border-white/10 rounded-2xl focus-visible:ring-accent"
+              />
+              <Button className="absolute right-1 top-1 h-10 rounded-xl bg-accent hover:bg-accent/90 text-black font-bold px-6">
+                Search
+              </Button>
+            </div>
+            
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2 sm:gap-4">
             
             <Link href="/saved">
               <Button variant="outline" className="hidden sm:flex items-center gap-2 border-white/10 hover:bg-white/5 rounded-xl h-12 px-4">
@@ -223,12 +211,23 @@ export default function HomePage() {
               )}
             </div>
           </div>
+          </div>
           
+          {/* Mobile Search Bar */}
+          <div className="md:hidden relative mt-1 pb-3 px-4 w-full">
+            <Search className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground -mt-1.5" />
+            <Input 
+              placeholder="Search for food, drinks..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 h-10 bg-white/5 border-white/10 rounded-xl focus-visible:ring-accent text-sm"
+            />
+          </div>
         </div>
       </header>
 
       {/* MAIN CONTENT AREA */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 mt-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-10 mt-4 sm:mt-6">
         
         {/* QUICK FILTERS */}
         <section className="flex items-center gap-3">
@@ -262,7 +261,7 @@ export default function HomePage() {
         </section>
 
         {/* FEATURED / HERO PROMO SECTION */}
-        <section className="relative overflow-hidden rounded-3xl bg-card border border-white/5 text-white p-8 sm:p-12 shadow-2xl min-h-[200px] flex items-center">
+        <section className="relative overflow-hidden rounded-3xl bg-card border border-white/5 text-white p-6 sm:p-12 shadow-2xl min-h-[160px] sm:min-h-[200px] flex items-center">
           {/* Abstract background shapes */}
           <div className="absolute top-0 left-0 w-full h-full overflow-hidden rounded-3xl opacity-30 mix-blend-screen pointer-events-none">
             <div className="absolute -top-20 -left-20 w-64 h-64 bg-accent/40 rounded-full blur-[80px]"></div>
@@ -270,16 +269,16 @@ export default function HomePage() {
           </div>
           
           <div className="relative z-10 max-w-xl">
-            <Badge className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/10 mb-4 px-3 py-1 text-xs uppercase font-bold tracking-wider">
+            <Badge className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/10 mb-3 sm:mb-4 px-2 sm:px-3 py-1 text-[10px] sm:text-xs uppercase font-bold tracking-wider">
               Limited Time
             </Badge>
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-tight mb-2 tracking-tight text-white">
+            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black leading-tight mb-2 tracking-tight text-white">
               🎉 Launch <span className="text-accent">Offer</span>
             </h2>
-            <p className="text-neutral-300 text-sm sm:text-base mt-2 max-w-md">
+            <p className="text-neutral-300 text-xs sm:text-base mt-2 max-w-md">
               No Service Fee on orders below ₦2,000. <br/> Available for our first 200 completed orders.
             </p>
-            <Button className="mt-6 bg-accent hover:bg-accent/90 text-black font-bold rounded-xl h-12 px-8 shadow-[0_0_20px_rgba(250,204,21,0.3)]">
+            <Button className="mt-4 sm:mt-6 bg-accent hover:bg-accent/90 text-black font-bold rounded-xl h-10 sm:h-12 px-6 sm:px-8 shadow-[0_0_20px_rgba(250,204,21,0.3)] text-sm sm:text-base">
               Order Now
             </Button>
           </div>
@@ -357,11 +356,20 @@ export default function HomePage() {
 
       {/* MOBILE BOTTOM NAVIGATION (Hidden on Desktop) */}
       <nav className="md:hidden fixed bottom-0 w-full bg-card/90 backdrop-blur-xl border-t border-white/5 px-6 py-4 flex justify-between items-center z-50 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-        <div className="flex flex-col items-center gap-1 text-accent cursor-pointer">
+        <Link href="/stores" className="flex flex-col items-center gap-1 text-accent cursor-pointer">
           <Home className="w-6 h-6" strokeWidth={2.5} />
           <span className="text-[10px] font-bold">Home</span>
-        </div>
-        <div className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        </Link>
+        <div 
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => {
+              const input = document.querySelector('input[placeholder="Search for food, drinks..."]') as HTMLInputElement;
+              if (input) input.focus();
+            }, 500);
+          }}
+          className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        >
           <Search className="w-6 h-6" strokeWidth={2.5} />
           <span className="text-[10px] font-semibold">Browse</span>
         </div>
@@ -378,14 +386,14 @@ export default function HomePage() {
             )}
           </div>
         </div>
-        <div className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        <Link href="/saved" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <Heart className="w-6 h-6" strokeWidth={2.5} />
           <span className="text-[10px] font-semibold">Favorites</span>
-        </div>
-        <div className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+        </Link>
+        <Link href="/profile" className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
           <User className="w-6 h-6" strokeWidth={2.5} />
           <span className="text-[10px] font-semibold">Profile</span>
-        </div>
+        </Link>
       </nav>
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />

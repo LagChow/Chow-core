@@ -12,40 +12,7 @@ import { Card } from '@/components/ui/card';
 import Image from 'next/image';
 import axios from 'axios';
 
-const UNILAG_LOCATIONS = [
-  // Hostels
-  "New Hall (Eni-Njoku)",
-  "New Hall (Sodiende)",
-  "New Hall (Makama)",
-  "New Hall (Fagunwa)",
-  "New Hall (Madam Tinubu MTH)",
-  "Jaja",
-  "Moremi",
-  "Mariere",
-  "Biobaku",
-  "Amina",
-  "Kofo",
-  "Elkanemi",
-  "Gbaja",
-  "Honours",
-  "Women Society",
-  
-  // Landmarks
-  "Main Library",
-  "Faculty of Arts",
-  "Faculty of Science",
-  "Faculty of Engineering",
-  "Faculty of Law",
-  "Faculty of Education",
-  "Faculty of Social Sciences",
-  "Faculty of Management Sciences",
-  "Senate Building",
-  "Staff Quarters",
-  "Medical Centre (Jaja)",
-  "Sports Centre",
-  "DLI (Distance Learning Institute)",
-  "Other"
-];
+import { UNILAG_LOCATIONS } from '@/lib/constants';
 
 function getConvenienceFee(amount: number) {
   if (amount < 2000) return 0;
@@ -59,7 +26,7 @@ function getConvenienceFee(amount: number) {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, totalAmount, totalItems } = useCart();
+  const { items, totalAmount, totalItems, deliveryLocation } = useCart();
   const { user, loading: userLoading } = useUser();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   
@@ -86,14 +53,31 @@ export default function CheckoutPage() {
 
   // Prefill user data
   useEffect(() => {
-    if (user && !form.hall) {
+    if (!form.hall) {
+      let defaultHall = "";
+      let customAddr = "";
+      
+      const locToUse = deliveryLocation || (user ? (user.hallOfResidence || user.landmark || "") : "");
+      
+      if (locToUse) {
+         // Check if locToUse matches any UNILAG_LOCATIONS exactly
+         const found = UNILAG_LOCATIONS.find(loc => loc.toLowerCase() === locToUse.split(',')[0].toLowerCase() || loc.toLowerCase() === locToUse.toLowerCase());
+         if (found) {
+           defaultHall = found;
+         } else {
+           defaultHall = "Other";
+           customAddr = locToUse.split(',')[0]; // Store the primary name
+         }
+      }
+      
       setForm(prev => ({
         ...prev,
-        hall: user.hallOfResidence || user.landmark || "",
-        room: (user as any).roomNumber || ""
+        hall: defaultHall,
+        customAddress: customAddr,
+        room: user ? ((user as any).roomNumber || "") : ""
       }));
     }
-  }, [user]);
+  }, [user, deliveryLocation]);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [maxPrepTime, setMaxPrepTime] = useState(15);
 
