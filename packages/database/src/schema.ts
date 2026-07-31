@@ -90,6 +90,7 @@ export const items = pgTable('items', {
   dailyQuantity: integer('daily_quantity'), // null = unlimited
   tags: jsonb('tags').default('[]'), // ['Best Seller', 'Spicy', etc.]
   visibility: text('visibility').default('published'), // 'published' | 'draft'
+  restockTime: timestamp('restock_time'), // Timestamp for when the item will be available again
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

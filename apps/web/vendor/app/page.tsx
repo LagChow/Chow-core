@@ -16,6 +16,14 @@ export default function VendorDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('orders');
   const [isClient, setIsClient] = useState(false);
 
+  const [vendorStatus, setVendorStatus] = useState<any>({
+    status: 'Available',
+    color: 'green',
+    demand: 'Low',
+    time: '15-25 min'
+  });
+  const [statusLoading, setStatusLoading] = useState(false);
+
   useEffect(() => {
     setIsClient(true);
     const id = localStorage.getItem('vendorId');
@@ -23,6 +31,15 @@ export default function VendorDashboard() {
       router.replace('/login');
     } else {
       setVendorId(id);
+      // Fetch initial vendor status
+      fetch(`/api/vendors/${id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.vendor?.queueStatus) {
+            setVendorStatus(data.vendor.queueStatus);
+          }
+        })
+        .catch(console.error);
     }
   }, [router]);
 
@@ -31,6 +48,34 @@ export default function VendorDashboard() {
   const handleLogout = () => {
     localStorage.removeItem('vendorId');
     router.replace('/login');
+  };
+
+  const updateQueueStatus = async (field: 'status' | 'demand', value: string) => {
+    if (!vendorId) return;
+    setStatusLoading(true);
+    try {
+      let newStatus = { ...vendorStatus, [field]: value };
+      
+      // Auto-adjust color and time based on status/demand
+      if (field === 'status') {
+        if (value === 'Available') { newStatus.color = 'green'; newStatus.time = '15-25 min'; }
+        if (value === 'Moderate') { newStatus.color = 'yellow'; newStatus.time = '25-35 min'; }
+        if (value === 'Rush Hour') { newStatus.color = 'red'; newStatus.time = '45+ min'; }
+      }
+
+      const res = await fetch(`/api/vendors/${vendorId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ queueStatus: newStatus })
+      });
+      if (res.ok) {
+        setVendorStatus(newStatus);
+      }
+    } catch (e) {
+      console.error('Failed to update status', e);
+    } finally {
+      setStatusLoading(false);
+    }
   };
 
   return (
@@ -67,7 +112,44 @@ export default function VendorDashboard() {
           </nav>
         </div>
 
-        <div className="p-4 space-y-2">
+        {/* Live Status Controls - Desktop */}
+        <div className="p-4 mx-4 mb-2 bg-white/5 border border-white/10 rounded-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Live Status</span>
+            {statusLoading && <div className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />}
+          </div>
+          
+          <div className="space-y-1">
+            <label className="text-[10px] text-white/50 font-semibold uppercase">Queue</label>
+            <select 
+              value={vendorStatus?.status || 'Available'}
+              onChange={(e) => updateQueueStatus('status', e.target.value)}
+              disabled={statusLoading}
+              className="w-full bg-black/40 border border-white/10 rounded-lg text-sm p-2 text-white outline-none focus:border-accent"
+            >
+              <option value="Available">🟢 Available</option>
+              <option value="Moderate">🟡 Moderate</option>
+              <option value="Rush Hour">🔴 Rush Hour</option>
+            </select>
+          </div>
+          
+          <div className="space-y-1">
+            <label className="text-[10px] text-white/50 font-semibold uppercase">Demand</label>
+            <select 
+              value={vendorStatus?.demand || 'Low'}
+              onChange={(e) => updateQueueStatus('demand', e.target.value)}
+              disabled={statusLoading}
+              className="w-full bg-black/40 border border-white/10 rounded-lg text-sm p-2 text-white outline-none focus:border-accent"
+            >
+              <option value="Low">Low</option>
+              <option value="Moderate">Moderate</option>
+              <option value="High">High</option>
+              <option value="Very High">Very High</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="p-4 space-y-2 mt-auto">
           <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-muted-foreground hover:bg-white/5 hover:text-white transition-all">
             <HeadphonesIcon className="w-5 h-5" /> Support
           </button>
@@ -81,16 +163,43 @@ export default function VendorDashboard() {
       </aside>
 
       {/* Mobile Top Navigation */}
-      <div className="md:hidden sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
-            <Store className="w-4 h-4 text-black" />
+      <div className="md:hidden sticky top-0 z-50 bg-black border-b border-white/10 p-4 flex flex-col gap-3 shadow-2xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
+              <Store className="w-4 h-4 text-black" />
+            </div>
+            <h1 className="font-black text-lg tracking-tight">Merchant App</h1>
           </div>
-          <h1 className="font-black text-lg tracking-tight">Merchant App</h1>
+          <button onClick={handleLogout} className="text-red-500 p-2">
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
-        <button onClick={handleLogout} className="text-red-500 p-2">
-          <LogOut className="w-5 h-5" />
-        </button>
+        
+        {/* Mobile Live Status Mini-Controls */}
+        <div className="flex gap-2">
+          <select 
+            value={vendorStatus?.status || 'Available'}
+            onChange={(e) => updateQueueStatus('status', e.target.value)}
+            disabled={statusLoading}
+            className="flex-1 bg-white/5 border border-white/10 rounded-lg text-xs p-2 text-white outline-none focus:border-accent appearance-none"
+          >
+            <option value="Available">🟢 Available</option>
+            <option value="Moderate">🟡 Moderate</option>
+            <option value="Rush Hour">🔴 Rush Hour</option>
+          </select>
+          <select 
+            value={vendorStatus?.demand || 'Low'}
+            onChange={(e) => updateQueueStatus('demand', e.target.value)}
+            disabled={statusLoading}
+            className="flex-1 bg-white/5 border border-white/10 rounded-lg text-xs p-2 text-white outline-none focus:border-accent appearance-none"
+          >
+            <option value="Low">Low Demand</option>
+            <option value="Moderate">Mod. Demand</option>
+            <option value="High">High Demand</option>
+            <option value="Very High">Peak Demand</option>
+          </select>
+        </div>
       </div>
 
       {/* Mobile Bottom Bar Navigation */}
@@ -119,7 +228,7 @@ export default function VendorDashboard() {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto pb-32 md:pb-0 relative">
+      <main className="flex-1 min-w-0 overflow-y-auto pb-32 md:pb-0 relative bg-background">
         {activeTab === 'orders' && <OrdersView vendorId={vendorId} />}
         {activeTab === 'menu' && <MenuView vendorId={vendorId} />}
         {activeTab === 'analytics' && <AnalyticsView vendorId={vendorId} />}
