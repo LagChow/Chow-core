@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Share, Search, MapPin, Clock, Heart, Star, ShoppingBag, Plus, X } from 'lucide-react';
+import { ChevronLeft, Share, Search, MapPin, Clock, Heart, Star, ShoppingBag, Plus, X, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -36,6 +36,28 @@ const queueColorMap: Record<string, any> = {
     badgeBorder: 'border-green-500/30',
     pulse: 'bg-green-400'
   }
+};
+
+const StoreHeaderImage = ({ src, alt }: { src: string; alt: string }) => {
+  const [error, setError] = useState(false);
+  if (!src || error) {
+    return (
+      <div className="w-full h-full bg-accent/10 flex flex-col items-center justify-center border-b border-white/5">
+        <Store className="w-16 h-16 mb-2 opacity-20 text-accent" />
+        <span className="text-6xl font-black text-accent/20 uppercase">{alt.charAt(0)}</span>
+      </div>
+    );
+  }
+  return (
+    <Image 
+      src={src} 
+      alt={alt} 
+      fill 
+      className="object-cover"
+      priority
+      onError={() => setError(true)}
+    />
+  );
 };
 
 export default function VendorPage({ params }: { params: Promise<{ id: string }> }) {
@@ -97,13 +119,7 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
       
       {/* 1. VENDOR COVER & HEADER */}
       <div className="relative h-[250px] sm:h-[350px] w-full">
-        <Image 
-          src={vendor.coverImage} 
-          alt={vendor.name} 
-          fill 
-          className="object-cover"
-          priority
-        />
+        <StoreHeaderImage src={vendor.coverImage} alt={vendor.name} />
         {/* Gradient Overlay for text readability */}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
         

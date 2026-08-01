@@ -16,6 +16,27 @@ const queueColorMap: Record<string, any> = {
   green: { text: 'text-green-500', bg: 'bg-green-500', badgeBg: 'bg-green-500/10' },
 };
 
+const StoreImage = ({ src, alt }: { src: string; alt: string }) => {
+  const [error, setError] = useState(false);
+  if (!src || error) {
+    return (
+      <div className="w-full h-full bg-accent/10 flex flex-col items-center justify-center border-b border-white/5">
+        <Store className="w-10 h-10 mb-2 opacity-20 text-accent" />
+        <span className="text-4xl font-black text-accent/20 uppercase">{alt.charAt(0)}</span>
+      </div>
+    );
+  }
+  return (
+    <Image 
+      src={src} 
+      alt={alt} 
+      fill 
+      className="object-cover transition-transform duration-500 group-hover:scale-105" 
+      onError={() => setError(true)}
+    />
+  );
+};
+
 export default function SavedPage() {
   const router = useRouter();
   const { user, loading: userLoading } = useUser();
@@ -122,7 +143,7 @@ export default function SavedPage() {
                 <Link key={vendor.id} href={`/store/${vendor.id}`}>
                   <Card className="p-0 border border-white/5 shadow-xl overflow-hidden rounded-[20px] bg-card group cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] duration-300 h-full flex flex-col">
                     <div className="relative h-[180px] w-full bg-muted shrink-0">
-                      <Image src={vendor.coverImage} alt={vendor.name} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <StoreImage src={vendor.coverImage} alt={vendor.name} />
                       <button 
                         onClick={(e) => toggleSave(e, vendor.id)}
                         className="absolute top-3 right-3 bg-red-500/20 backdrop-blur-md border border-white/10 p-2 rounded-full flex items-center justify-center text-red-500 hover:bg-red-500/30 transition-all shadow-sm"
