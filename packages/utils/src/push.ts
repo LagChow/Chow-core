@@ -1,10 +1,21 @@
 import webPush from 'web-push';
 
-webPush.setVapidDetails(
-  process.env.VAPID_SUBJECT || 'mailto:support@lagchow.com',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY as string,
-  process.env.VAPID_PRIVATE_KEY as string
-);
+const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const privateKey = process.env.VAPID_PRIVATE_KEY;
+
+if (publicKey && privateKey) {
+  try {
+    webPush.setVapidDetails(
+      process.env.VAPID_SUBJECT || 'mailto:support@lagchow.com',
+      publicKey,
+      privateKey
+    );
+  } catch (error) {
+    console.warn('Failed to configure web-push VAPID details:', error);
+  }
+} else {
+  console.warn('VAPID keys not found. Push notifications will be disabled during this run/build.');
+}
 
 export interface PushPayload {
   title: string;
