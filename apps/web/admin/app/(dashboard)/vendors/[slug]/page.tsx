@@ -5,6 +5,7 @@ import { eq, sql, desc } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
+import { CoverImageUpload } from '@/components/vendors/cover-image-upload';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,7 +72,8 @@ export default async function VendorProfilePage({
             <p className="text-white/60 mt-2 font-medium">{vendor.email} • {vendor.phone}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl font-bold backdrop-blur-md transition-colors">
+            <CoverImageUpload vendorId={vendor.id} vendorSlug={vendor.slug} />
+            <button className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl font-bold backdrop-blur-md transition-colors h-10">
               Contact Vendor
             </button>
           </div>

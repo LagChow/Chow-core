@@ -1,8 +1,8 @@
 import React from 'react';
 import { db } from '@lagchow/database';
-import { riders } from '@lagchow/database/src/schema';
-import { eq, sql } from 'drizzle-orm';
-import { Bike, MapPin, Wifi, WifiOff } from 'lucide-react';
+import { riders, orders } from '@lagchow/database/src/schema';
+import { eq, inArray } from 'drizzle-orm';
+import { Bike, MapPin, Wifi, WifiOff, Box } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,9 +10,27 @@ export default async function ActiveRidersPage() {
 
   const allRiders = await db.select().from(riders).orderBy(riders.status);
 
+  // Fetch active deliveries to see which riders are busy
+  const activeDeliveries = await db.select().from(orders).where(
+    inArray(orders.status, ['rider_accepted', 'rider_at_vendor', 'out_for_delivery', 'arrived'])
+  );
+
   const activeRiders = allRiders.filter(r => r.status === 'active');
   const offlineRiders = allRiders.filter(r => r.status === 'offline');
   const pendingRiders = allRiders.filter(r => r.status === 'pending');
+
+  const getRiderStatusText = (riderId: string) => {
+    const isBusy = activeDeliveries.some(d => d.riderId === riderId);
+    return isBusy ? (
+      <span className="text-[10px] uppercase tracking-wider text-accent font-bold flex items-center gap-1 bg-accent/10 px-2 py-0.5 rounded">
+        <Box className="w-3 h-3" /> On Delivery
+      </span>
+    ) : (
+      <span className="text-[10px] uppercase tracking-wider text-green-400 font-bold flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded">
+        <Wifi className="w-3 h-3" /> Idle
+      </span>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-6 pb-12">
@@ -77,9 +95,7 @@ export default async function ActiveRidersPage() {
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-wider text-green-400 font-bold flex items-center gap-1">
-                    <Wifi className="w-3 h-3" /> Live
-                  </span>
+                  {getRiderStatusText(rider.id)}
                   <span className="text-[10px] text-muted-foreground">
                     Since {new Date(rider.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>

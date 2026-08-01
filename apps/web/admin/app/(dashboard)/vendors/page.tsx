@@ -20,7 +20,8 @@ async function updateVendorStatus(vendorId: string, newStatus: string) {
 async function removeVendor(vendorId: string) {
   'use server';
   
-  await db.delete(vendors)
+  await db.update(vendors)
+    .set({ status: 'deleted' })
     .where(eq(vendors.id, vendorId));
     
   revalidatePath('/vendors');
@@ -56,6 +57,8 @@ export default async function VendorsPage({
 
   if (statusFilter && statusFilter !== 'all') {
     rawQuery = sql`${rawQuery} WHERE v.status = ${statusFilter}`;
+  } else {
+    rawQuery = sql`${rawQuery} WHERE v.status != 'deleted'`;
   }
 
   rawQuery = sql`${rawQuery} GROUP BY v.id ORDER BY v.created_at DESC`;

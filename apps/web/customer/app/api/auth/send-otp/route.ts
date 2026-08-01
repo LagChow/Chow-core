@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db, verificationTokens, eq } from '@lagchow/database';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key_for_build");
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();

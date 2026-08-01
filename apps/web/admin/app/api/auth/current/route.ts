@@ -13,6 +13,10 @@ export async function GET() {
     }
 
     const payload = await verifyToken(token);
+
+    if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
     if (!payload?.email) {
       return NextResponse.json({ user: null });

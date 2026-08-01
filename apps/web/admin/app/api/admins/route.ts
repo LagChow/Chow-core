@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/jwt';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key_for_build");
 
 export async function GET() {
   try {
@@ -27,7 +27,10 @@ export async function POST(req: Request) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     
     const payload = await verifyToken(token);
-    if (payload?.role !== 'super_admin') {
+    if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (payload.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can invite' }, { status: 403 });
     }
 

@@ -7,6 +7,7 @@ import { Store, Settings, PieChart, ShoppingBag, MenuSquare, HeadphonesIcon, Log
 import OrdersView from '@/components/vendor/orders-view';
 import MenuView from '@/components/vendor/menu-view';
 import AnalyticsView from '@/components/vendor/analytics-view';
+import { PushNotificationSettings } from '@/components/push-notification-settings';
 
 type Tab = 'orders' | 'menu' | 'analytics';
 
@@ -149,6 +150,10 @@ export default function VendorDashboard() {
           </div>
         </div>
 
+        <div className="p-4">
+          <PushNotificationSettings />
+        </div>
+
         <div className="p-4 space-y-2 mt-auto">
           <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-muted-foreground hover:bg-white/5 hover:text-white transition-all">
             <HeadphonesIcon className="w-5 h-5" /> Support
@@ -174,6 +179,10 @@ export default function VendorDashboard() {
           <button onClick={handleLogout} className="text-red-500 p-2">
             <LogOut className="w-5 h-5" />
           </button>
+        </div>
+        
+        <div className="px-2 pb-2">
+          <PushNotificationSettings />
         </div>
         
         {/* Mobile Live Status Mini-Controls */}

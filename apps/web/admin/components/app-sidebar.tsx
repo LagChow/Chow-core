@@ -52,16 +52,24 @@ const data = {
           url: "/orders",
         },
         {
-          title: "Vendors",
-          url: "/vendors",
+          title: "Active Riders",
+          url: "/active-riders",
         },
         {
-          title: "Riders",
+          title: "Delivery Ops",
+          url: "/delivery-ops",
+        },
+        {
+          title: "Riders Directory",
           url: "/riders",
         },
         {
           title: "Delivery Modes",
           url: "/delivery-modes",
+        },
+        {
+          title: "Vendors",
+          url: "/vendors",
         },
       ],
     },
