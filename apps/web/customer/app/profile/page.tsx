@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useUser } from '@/hooks/use-user';
+import { PushNotificationSettings } from '@/components/push-notification-settings';
 
 const MOCK_ORDERS = [
   {
@@ -123,6 +124,7 @@ export default function ProfilePage() {
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </Button>
+          <PushNotificationSettings />
         </div>
 
         {/* Order History */}

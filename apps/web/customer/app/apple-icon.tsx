@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-export const size = { width: 180, height: 180 };
+export const size = { width: 512, height: 512 };
 export const contentType = 'image/png';
 
 export default function Icon() {
@@ -19,9 +19,9 @@ export default function Icon() {
           fontFamily: 'sans-serif',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-end', fontSize: 80 }}>
-          <span style={{ color: '#facc15', letterSpacing: '-2px' }}>L</span>
-          <span style={{ color: 'white', letterSpacing: '-2px' }}>C</span>
+        <div style={{ display: 'flex', alignItems: 'flex-end', fontSize: 110, letterSpacing: '-4px' }}>
+          <span style={{ color: '#facc15' }}>Lag</span>
+          <span style={{ color: 'white' }}>Chow</span>
           <span style={{ color: '#facc15' }}>.</span>
         </div>
       </div>

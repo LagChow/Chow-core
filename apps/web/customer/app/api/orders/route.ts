@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
-import { db, orders, orderItems, vendors, eq, desc } from '@lagchow/database';
+import { db } from "@lagchow/database";
+import { orders, orderItems, pushSubscriptions, vendors, items as itemsTable } from "@lagchow/database/src/schema";
+import { eq, desc, inArray } from "drizzle-orm";
 import { verifyToken } from '@/lib/jwt';
 import { cookies } from 'next/headers';
+import { sendPushNotification } from "@lagchow/utils";
 
 async function getUserIdFromSession() {
   const cookieStore = await cookies();
@@ -59,6 +62,31 @@ export async function POST(request: Request) {
 
     if (!vendorId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "Invalid order data" }, { status: 400 });
+    }
+
+    // Edge Case 17: Validate item prices and availability
+    const itemIds = items.map((item: any) => item.id || item.itemId);
+    const dbItems = await db.query.items.findMany({
+      where: inArray(itemsTable.id, itemIds)
+    });
+
+    let calculatedTotal = 0;
+    for (const clientItem of items) {
+      const dbItem = dbItems.find(i => i.id === (clientItem.id || clientItem.itemId));
+      if (!dbItem) {
+        return NextResponse.json({ error: `Item ${clientItem.name} no longer exists.` }, { status: 400 });
+      }
+      if (!dbItem.isAvailable) {
+        return NextResponse.json({ error: `Item ${dbItem.name} is currently out of stock!` }, { status: 400 });
+      }
+      if (dbItem.price !== clientItem.price) {
+        return NextResponse.json({ error: `Price changed for ${dbItem.name}. Please review your cart.`, newPrice: dbItem.price }, { status: 409 });
+      }
+      calculatedTotal += dbItem.price * clientItem.quantity;
+    }
+
+    if (calculatedTotal !== totalAmount) {
+      return NextResponse.json({ error: "Total amount mismatch." }, { status: 400 });
     }
 
     // Lookup the vendor's UUID from the database using the provided slug (vendorId from frontend)
@@ -122,6 +150,25 @@ export async function POST(request: Request) {
     } catch (wsError) {
       console.error("Failed to emit realtime order event:", wsError);
       // We don't fail the order if the websocket notification fails
+    }
+
+    // 4. Send Web Push Notification to Vendor
+    try {
+      const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.vendorId, dbVendor.id));
+      if (subs.length > 0) {
+        await Promise.all(subs.map(sub => 
+          sendPushNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            { 
+              title: 'New Order Received! 🛵', 
+              body: `You have a new order for ₦${order.totalAmount.toLocaleString()}`, 
+              url: `/orders`
+            }
+          ).catch(e => console.error("Push failed for sub:", e))
+        ));
+      }
+    } catch (pushError) {
+      console.error("Failed to send push notification:", pushError);
     }
 
     return NextResponse.json(newOrder, { status: 201 });

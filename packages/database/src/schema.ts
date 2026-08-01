@@ -166,3 +166,15 @@ export const broadcasts = pgTable('broadcasts', {
   status: text('status').default('sent'), // 'sent', 'pending'
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  vendorId: uuid('vendor_id').references(() => vendors.id, { onDelete: 'cascade' }),
+  riderId: uuid('rider_id').references(() => riders.id, { onDelete: 'cascade' }),
+  adminId: uuid('admin_id').references(() => admins.id, { onDelete: 'cascade' }),
+  endpoint: text('endpoint').notNull(),
+  p256dh: text('p256dh').notNull(),
+  auth: text('auth').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});

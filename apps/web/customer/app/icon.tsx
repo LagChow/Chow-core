@@ -19,9 +19,9 @@ export default function Icon() {
           fontFamily: 'sans-serif',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-end', fontSize: 240 }}>
-          <span style={{ color: '#facc15', letterSpacing: '-10px' }}>L</span>
-          <span style={{ color: 'white', letterSpacing: '-10px' }}>C</span>
+        <div style={{ display: 'flex', alignItems: 'flex-end', fontSize: 110, letterSpacing: '-4px' }}>
+          <span style={{ color: '#facc15' }}>Lag</span>
+          <span style={{ color: 'white' }}>Chow</span>
           <span style={{ color: '#facc15' }}>.</span>
         </div>
       </div>

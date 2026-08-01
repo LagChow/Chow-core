@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 
 export async function GET() {
   try {
-    const allVendors = await db.select().from(vendors);
+    const allVendors = await db.select().from(vendors).where(eq(vendors.status, 'active'));
     
     // We also need to attach categories and items so it matches the mock data format
     // for the homepage right now (or we can just return vendors if homepage doesn't need items).

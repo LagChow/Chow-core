@@ -4,6 +4,7 @@ import { riders, orders } from '@lagchow/database/src/schema';
 import { desc, sql, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
+import { OnboardRiderModal } from '@/components/onboard-rider-modal';
 
 // Server Action for updating rider status
 async function updateRiderStatus(riderId: string, newStatus: string) {
@@ -64,9 +65,11 @@ export default async function RidersPage({
             <a href="/riders?status=offline" className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${statusFilter === 'offline' ? 'bg-accent text-black' : 'bg-white/5 hover:bg-white/10 text-white'}`}>Offline</a>
             <a href="/riders?status=pending" className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${statusFilter === 'pending' ? 'bg-accent text-black' : 'bg-white/5 hover:bg-white/10 text-white'}`}>Pending</a>
           </div>
-          <button className="bg-accent text-black px-4 py-2 rounded-lg text-sm font-bold hover:scale-[1.02] transition-transform">
-            Onboard Rider
-          </button>
+          <OnboardRiderModal>
+            <button className="bg-accent text-black px-4 py-2 rounded-lg text-sm font-bold hover:scale-[1.02] transition-transform">
+              Onboard Rider
+            </button>
+          </OnboardRiderModal>
         </div>
       </div>
 
