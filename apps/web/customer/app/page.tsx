@@ -7,6 +7,7 @@ import { ArrowRight, MapPin, Zap, ShieldCheck, CheckCircle2 } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { MapWrapper } from '@/components/map-wrapper';
 import { OrderSimulation } from '@/components/order-simulation';
+import { Footer } from '@/components/footer';
 
 export default function LandingPage() {
   return (
@@ -209,13 +210,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SIMPLE FOOTER */}
-      <footer className="border-t border-white/5 py-12 text-center text-muted-foreground">
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <span className="text-2xl font-black text-accent">LagChow<span className="text-foreground">.</span></span>
-        </div>
-        <p className="text-sm font-medium">© {new Date().getFullYear()} LagChow. All rights reserved.</p>
-      </footer>
+      {/* FOOTER */}
+      <Footer />
     </main>
   );
 }

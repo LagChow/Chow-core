@@ -8,7 +8,7 @@ import { Card } from './ui/card';
 
 const UNILAG_HALLS = [
   "New Hall (Eni-Njoku)",
-  "New Hall (Sodiende)",
+  "New Hall (Sodeinde)",
   "New Hall (Makama)",
   "New Hall (Fagunwa)",
   "New Hall (Madam Tinubu MTH)",
