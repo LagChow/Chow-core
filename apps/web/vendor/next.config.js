@@ -1,4 +1,6 @@
-module.exports = {
+const { withSentryConfig } = require("@sentry/nextjs");
+
+const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@lagchow/ui", "@lagchow/database"],
   turbopack: {
@@ -32,3 +34,10 @@ module.exports = {
     return config;
   },
 };
+
+module.exports = withSentryConfig(nextConfig, {
+  silent: !process.env.CI,
+  telemetry: false,
+  hideSourceMaps: true,
+  disableLogger: true,
+});

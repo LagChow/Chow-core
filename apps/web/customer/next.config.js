@@ -1,4 +1,6 @@
-module.exports = {
+const { withSentryConfig } = require("@sentry/nextjs");
+
+const nextConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
@@ -51,3 +53,10 @@ module.exports = {
     return config;
   },
 };
+
+module.exports = withSentryConfig(nextConfig, {
+  silent: !process.env.CI,
+  telemetry: false,
+  hideSourceMaps: true,
+  disableLogger: true,
+});
