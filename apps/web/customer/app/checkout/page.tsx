@@ -6,6 +6,7 @@ import { useCart } from '@/lib/cart-context';
 import { useUser } from '@/hooks/use-user';
 import { AuthModal } from '@/components/auth-modal';
 import { ChevronLeft, ChevronRight, MapPin, Bike, CalendarDays, Wallet, Globe, User, MessageSquare, Gift, CheckCircle2, Clock, MoveDown } from 'lucide-react';
+import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -170,13 +171,13 @@ export default function CheckoutPage() {
     }
     
     if (!form.hall) {
-      alert("Please select your delivery location.");
+      toast.error("Please select your delivery location.");
       setShowAddress(true);
       return;
     }
     
     if (form.hall === "Other" && !form.customAddress) {
-      alert("Please describe your location.");
+      toast.error("Please describe your location.");
       setShowAddress(true);
       return;
     }
@@ -212,9 +213,10 @@ export default function CheckoutPage() {
       
       // Since it could be multiple orders, redirect to the general orders page
       router.push("/orders");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Failed to place order.");
+      const errorMessage = error.response?.data?.error || "Failed to place order.";
+      toast.error(errorMessage);
       setIsPlacingOrder(false);
     }
   };

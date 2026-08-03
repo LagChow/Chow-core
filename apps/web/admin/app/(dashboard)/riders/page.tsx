@@ -147,6 +147,16 @@ export default async function RidersPage({
                             </button>
                           </form>
                         )}
+                        {rider.status === 'suspended' && (
+                          <form action={async () => {
+                            'use server';
+                            await updateRiderStatus(rider.id, 'offline');
+                          }}>
+                            <button type="submit" className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/10 transition-colors">
+                              Unsuspend
+                            </button>
+                          </form>
+                        )}
                         <button className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-colors">
                           Track
                         </button>

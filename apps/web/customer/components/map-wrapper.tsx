@@ -44,7 +44,7 @@ export function MapWrapper() {
       </div>
 
       {/* RESTAURANTS SIDEBAR COLUMN */}
-      <div className="w-full md:w-1/3 h-full flex flex-col bg-white">
+      <div className="w-full md:w-1/3 flex-1 flex flex-col bg-white min-h-[300px]">
         
         {/* HEADER */}
         <div className="bg-[#93c5fd] border-b-4 border-black p-4 flex items-center gap-3">

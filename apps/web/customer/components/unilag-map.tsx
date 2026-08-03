@@ -105,10 +105,10 @@ export default function UnilagMap() {
       </MapContainer>
       
       {/* Floating Info Pill */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
-        <div className="bg-white text-black border-2 border-black rounded-full px-6 py-3 font-bold text-sm shadow-[4px_4px_0px_rgba(0,0,0,1)] flex items-center gap-2 whitespace-nowrap">
-          <MapPin className="w-4 h-4 text-green-500 fill-current" />
-          Click on any hall location to see restaurants delivering there
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] w-[90%] md:w-auto pointer-events-none">
+        <div className="bg-white text-black border-2 border-black rounded-full px-4 py-2 md:px-6 md:py-3 font-bold text-xs md:text-sm shadow-[4px_4px_0px_rgba(0,0,0,1)] flex items-center justify-center gap-2 text-center pointer-events-auto mx-auto max-w-sm">
+          <MapPin className="w-4 h-4 text-green-500 fill-current shrink-0" />
+          <span>Tap a hall to see restaurants</span>
         </div>
       </div>
     </div>
