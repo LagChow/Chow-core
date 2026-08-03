@@ -5,7 +5,7 @@ import { CartDrawer } from '@/components/cart-drawer';
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { SocketProvider } from "@lagchow/realtime";
-import { Toaster } from "@/components/ui/toast";
+import { Toaster } from "@/components/ui/sonner";
 
 import { MaintenanceScreen } from '@/components/maintenance-screen';
 import { db } from '@lagchow/database';
