@@ -36,7 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .where(
         and(
           eq(orders.id, resolvedParams.id),
-          isNull(orders.riderId) as any // Transactional Lock!
+          isNull(orders.riderId as any) // Transactional Lock!
         )
       )
       .returning();
