@@ -57,7 +57,7 @@ export default function UnilagMap() {
     { name: "King Jaja", coords: [6.51624, 3.39804], color: "#f87171" },
     { name: "Moremi", coords: [6.51751, 3.39677], color: "#4ade80" },
     { name: "Mariere", coords: [6.51813, 3.39807], color: "#60a5fa" },
-    { name: "Sodeinde", coords: [6.51670, 3.39700], color: "#fcd34d" },
+    { name: "Sodeinde", coords: [6.51900, 3.39380], color: "#fcd34d" },
     { name: "Eni Njoku", coords: [6.51925, 3.39350], color: "#facc15" },
     { name: "New Hall", coords: [6.51997, 3.39260], color: "#fb923c" },
     { name: "Madam Tinubu", coords: [6.51950, 3.39200], color: "#fb7185" },

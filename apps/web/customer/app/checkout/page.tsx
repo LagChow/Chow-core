@@ -104,15 +104,14 @@ export default function CheckoutPage() {
     async function loadData() {
       setIsLoadingModes(true);
       try {
-        const [vendorRes, modesRes, menuRes] = await Promise.all([
+        const [vendorRes, modesRes] = await Promise.all([
           axios.get(`/api/vendors/${vendorId}`),
-          axios.get(`/api/delivery-modes`),
-          axios.get(`/api/menu?vendorId=${vendorId}`)
+          axios.get(`/api/delivery-modes`)
         ]);
 
         const vendorData = vendorRes.data.vendor || vendorRes.data;
         const modesData = modesRes.data;
-        const menuItems = menuRes.data.items || [];
+        const menuItems = vendorData.categories ? vendorData.categories.flatMap((c: any) => c.items) : [];
 
         // Calculate max prep time
         let maxPrep = 15;
