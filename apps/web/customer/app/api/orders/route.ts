@@ -61,32 +61,30 @@ export async function POST(request: Request) {
     const { vendorId, items, deliveryModeId, totalAmount, deliveryFee, convenienceFee, deliveryAddress, notes, paymentMethod } = body;
 
     if (!vendorId || !items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: "Invalid order data" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid order data: missing items or vendor" }, { status: 400 });
     }
 
     // Edge Case 17: Validate item prices and availability
     const itemIds = items.map((item: any) => item.id || item.itemId);
-    const dbItems = await db.query.items.findMany({
-      where: inArray(itemsTable.id, itemIds)
-    });
+    const dbItems = await db.select().from(itemsTable).where(inArray(itemsTable.id, itemIds));
 
     let calculatedTotal = 0;
     for (const clientItem of items) {
       const dbItem = dbItems.find(i => i.id === (clientItem.id || clientItem.itemId));
       if (!dbItem) {
-        return NextResponse.json({ error: `Item ${clientItem.name} no longer exists.` }, { status: 400 });
+        return NextResponse.json({ error: `Item ${clientItem.name} no longer exists. Tried IDs: ${itemIds.join(',')}` }, { status: 400 });
       }
       if (!dbItem.isAvailable) {
         return NextResponse.json({ error: `Item ${dbItem.name} is currently out of stock!` }, { status: 400 });
       }
-      if (dbItem.price !== clientItem.price) {
+      if (Number(dbItem.price) !== Number(clientItem.price)) {
         return NextResponse.json({ error: `Price changed for ${dbItem.name}. Please review your cart.`, newPrice: dbItem.price }, { status: 409 });
       }
-      calculatedTotal += dbItem.price * clientItem.quantity;
+      calculatedTotal += Number(dbItem.price) * Number(clientItem.quantity);
     }
 
-    if (calculatedTotal !== totalAmount) {
-      return NextResponse.json({ error: "Total amount mismatch." }, { status: 400 });
+    if (calculatedTotal !== Number(totalAmount)) {
+      return NextResponse.json({ error: `Total amount mismatch. Calculated: ${calculatedTotal}, Received: ${totalAmount}` }, { status: 400 });
     }
 
     // Lookup the vendor's UUID from the database using the provided slug (vendorId from frontend)
@@ -117,8 +115,8 @@ export async function POST(request: Request) {
     const orderItemsToInsert = items.map((item: any) => ({
       orderId: order.id,
       itemId: item.id || item.itemId,
-      quantity: item.quantity,
-      priceAtTime: item.price,
+      quantity: Number(item.quantity),
+      priceAtTime: Number(item.price),
     }));
 
     await db.insert(orderItems).values(orderItemsToInsert);
