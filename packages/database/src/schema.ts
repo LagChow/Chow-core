@@ -112,7 +112,7 @@ export const riders = pgTable('riders', {
 export const orders = pgTable('orders', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id),
-  vendorId: uuid('vendor_id').notNull().references(() => vendors.id),
+  vendorId: uuid('vendor_id').notNull().references(() => vendors.id, { onDelete: 'cascade' }),
   deliveryModeId: uuid('delivery_mode_id').references(() => deliveryModes.id),
   riderId: uuid('rider_id').references(() => riders.id),
   status: text('status').notNull().default('pending'), // pending, accepted, preparing, ready, rider_accepted, rider_at_vendor, out_for_delivery, arrived, delivered, cancelled
