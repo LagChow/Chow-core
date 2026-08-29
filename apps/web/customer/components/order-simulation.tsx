@@ -100,7 +100,7 @@ export function OrderSimulation() {
                   className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl"
                 >
                   <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 relative border border-white/10">
-                    <Image src={item.img} alt={item.name} fill className="object-cover" />
+                    <Image src={item.img} alt={item.name} fill sizes="48px" className="object-cover" />
                   </div>
                   <div>
                     <div className="font-bold text-sm text-foreground">{item.name}</div>

@@ -5,7 +5,16 @@ import { users, verificationTokens, savedVendors, vendors, categories, items, de
 const schema = { users, verificationTokens, savedVendors, vendors, categories, items, deliveryModes, orders, orderItems, admins, riders, platformSettings, broadcasts, pushSubscriptions };
 
 const sql = neon(process.env.DATABASE_URL!);
-export const db = drizzle(sql, { schema });
+
+const createDb = () => drizzle(sql, { schema });
+
+const globalForDb = globalThis as unknown as {
+  db: ReturnType<typeof createDb> | undefined;
+};
+
+export const db = globalForDb.db ?? createDb();
+
+if (process.env.NODE_ENV !== 'production') globalForDb.db = db;
 
 export * from './schema';
 export { eq, and, desc, inArray } from 'drizzle-orm';

@@ -62,7 +62,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
     return (
       <main className="min-h-screen bg-background p-4 flex flex-col items-center justify-center text-center">
         <h2 className="font-bold text-xl mb-2">Order Not Found</h2>
-        <p className="text-muted-foreground text-sm mb-6">This order might not exist or you don't have access to it.</p>
+        <p className="text-muted-foreground text-sm mb-6">This order might not exist or you don&apos;t have access to it.</p>
         <Button onClick={() => router.push('/orders')} className="bg-accent text-black">Go Back</Button>
       </main>
     );

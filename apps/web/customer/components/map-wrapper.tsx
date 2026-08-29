@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 
@@ -65,8 +66,8 @@ export function MapWrapper() {
               <Link key={vendor.id || idx} href={`/store/${vendor.id}`}>
                 <div className="bg-white border-2 border-black/10 rounded-xl p-4 flex items-center justify-between hover:border-black hover:shadow-[4px_4px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all group cursor-pointer">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0 border border-black/10">
-                      <img src={vendor.coverImage} alt={vendor.name} className="w-full h-full object-cover" />
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0 border border-black/10 relative">
+                      <Image src={vendor.coverImage} alt={vendor.name} fill sizes="40px" className="object-cover" />
                     </div>
                     <div>
                       <h4 className="font-bold text-black text-sm leading-tight group-hover:text-accent transition-colors">{vendor.name}</h4>
