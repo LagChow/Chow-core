@@ -15,6 +15,17 @@ import { cookies } from "next/headers";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
+import { unstable_cache } from 'next/cache';
+
+const getMaintenanceMode = unstable_cache(
+  async () => {
+    const record = await db.select().from(platformSettings).where(eq(platformSettings.key, 'maintenance_mode')).limit(1);
+    return record[0]?.value === true;
+  },
+  ['maintenance_mode_flag'],
+  { revalidate: 60, tags: ['maintenance_mode'] }
+);
+
 export const dynamic = 'force-dynamic';
 
 export default async function RootLayout({
@@ -22,9 +33,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Check if maintenance mode is enabled
-  const maintenanceRecord = await db.select().from(platformSettings).where(eq(platformSettings.key, 'maintenance_mode')).limit(1);
-  const isMaintenanceMode = maintenanceRecord[0]?.value === true;
+  const isMaintenanceMode = await getMaintenanceMode();
 
   const cookieStore = await cookies();
   const token = cookieStore.get('__session')?.value;

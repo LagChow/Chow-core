@@ -64,7 +64,7 @@ export default function OrdersPage() {
               <Package className="w-10 h-10 text-muted-foreground" />
             </div>
             <h2 className="font-bold text-lg mb-2">No orders yet</h2>
-            <p className="text-muted-foreground text-sm max-w-[250px] mb-6">Looks like you haven't placed any orders. Hungry?</p>
+            <p className="text-muted-foreground text-sm max-w-[250px] mb-6">Looks like you haven&apos;t placed any orders. Hungry?</p>
             <Button onClick={() => router.push('/')} className="bg-accent text-black font-bold rounded-xl h-12 px-8">
               Start Browsing
             </Button>

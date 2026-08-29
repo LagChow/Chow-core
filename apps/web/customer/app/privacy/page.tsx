@@ -31,13 +31,13 @@ export default function PrivacyPage() {
           <div className="prose prose-invert prose-lg max-w-none">
             <p className="font-semibold text-white mb-2">Version 1.1 · University of Lagos Campus</p>
             <p className="text-muted-foreground text-lg leading-relaxed mb-12">
-              At LagChow, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your personal information when you use our website, mobile application, and related services (collectively, the "Platform") within the University of Lagos campus.
+              At LagChow, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your personal information when you use our website, mobile application, and related services (collectively, the &quot;Platform&quot;) within the University of Lagos campus.
             </p>
 
             <div className="space-y-12 text-muted-foreground leading-relaxed">
               <div>
                 <h2 className="text-2xl font-bold text-white mb-4">1. Introduction</h2>
-                <p>This Privacy Policy describes LagChow's practices regarding the collection, use, and disclosure of your information. By accessing or using the Platform, you agree to the terms of this Policy. If you do not agree with the terms, please do not use the Platform.</p>
+                <p>This Privacy Policy describes LagChow&apos;s practices regarding the collection, use, and disclosure of your information. By accessing or using the Platform, you agree to the terms of this Policy. If you do not agree with the terms, please do not use the Platform.</p>
               </div>
 
               <div>
@@ -179,9 +179,9 @@ export default function PrivacyPage() {
                 <h2 className="text-2xl font-bold text-white mb-4">14. Changes to This Privacy Policy</h2>
                 <p className="mb-2">We may update this Privacy Policy from time to time to reflect changes in our practices, legal requirements, or platform features. When we make material changes, we will:</p>
                 <ul className="list-disc pl-6 space-y-2">
-                  <li>Notify you by email to the address registered on your account, with a minimum of fourteen (14) days' advance notice</li>
+                  <li>Notify you by email to the address registered on your account, with a minimum of fourteen (14) days&apos; advance notice</li>
                   <li>Display a prominent notice on the LagChow platform</li>
-                  <li>Update the "Effective Date" at the top of this document</li>
+                  <li>Update the &quot;Effective Date&quot; at the top of this document</li>
                 </ul>
                 <p className="mt-4">Your continued use of the platform after the effective date of any changes constitutes your acceptance of the updated Privacy Policy.</p>
               </div>
