@@ -19,10 +19,10 @@ export async function POST(req: Request) {
     
     if (token) {
       try {
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'secret');
-        const { payload } = await jwt.jwtVerify(token, secret);
-        if (payload.sub) {
-          userId = payload.sub as string;
+        const { verifyToken } = await import('@/lib/jwt');
+        const payload = await verifyToken(token);
+        if (payload?.id) {
+          userId = payload.id as string;
         }
       } catch (e) {
         // Continue even if not authenticated, might just be anonymous subscription

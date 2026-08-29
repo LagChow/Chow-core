@@ -13,9 +13,11 @@ export async function POST(req: Request) {
     const token = cookieStore.get('__session')?.value;
     
     if (token) {
-      const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'secret');
-      const { payload } = await jwt.jwtVerify(token, secret);
-      userId = payload.sub as string;
+      const { verifyToken } = await import('@/lib/jwt');
+      const payload = await verifyToken(token);
+      if (payload?.id) {
+        userId = payload.id as string;
+      }
     }
 
     if (!userId) {
