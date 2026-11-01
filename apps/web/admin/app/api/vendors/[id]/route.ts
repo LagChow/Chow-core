@@ -1,37 +1,65 @@
 import { NextResponse } from 'next/server';
-import { db } from '@lagchow/database';
-import { vendors } from '@lagchow/database/src/schema';
+import { db, vendors } from '@lagchow/database';
 import { eq } from 'drizzle-orm';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/jwt';
 
-export async function DELETE(
-  req: Request,
+async function requireAdminSession() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('__admin_session')?.value;
+  if (!token) return null;
+  const payload = await verifyToken(token);
+  if (!payload || (payload.role !== 'admin' && payload.role !== 'super_admin')) {
+    return null;
+  }
+  return payload;
+}
+
+export async function PATCH(
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-
-    if (!id) {
-      return NextResponse.json({ error: 'Vendor ID is required' }, { status: 400 });
+    const admin = await requireAdminSession();
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Try deleting the vendor.
-    // If the vendor has orders, it might throw a foreign key constraint error.
-    await db.delete(vendors).where(eq(vendors.id, id));
+    const { id } = await params;
+    const body = await request.json();
+    const { status } = body;
 
-    return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: any) {
-    console.error('Error deleting vendor:', error);
-    
-    // Check for foreign key constraint violation (usually code 23503 in Postgres)
-    if (error.code === '23503' || error.message.includes('foreign key constraint')) {
+    if (!status) {
       return NextResponse.json(
-        { error: 'Cannot delete this vendor because they have existing orders.' },
+        { error: 'Status is required' },
         { status: 400 }
       );
     }
 
+    const updatedVendor = await db
+      .update(vendors)
+      .set({
+        status: status,
+        updatedAt: new Date(),
+      })
+      .where(eq(vendors.id, id))
+      .returning();
+
+    if (updatedVendor.length === 0) {
+      return NextResponse.json(
+        { error: 'Vendor not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      message: 'Vendor status updated successfully',
+      vendor: updatedVendor[0],
+    });
+  } catch (error) {
+    console.error('Error updating vendor status:', error);
     return NextResponse.json(
-      { error: 'Failed to delete vendor', details: error.message },
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }

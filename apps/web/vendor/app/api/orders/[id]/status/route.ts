@@ -1,14 +1,31 @@
 import { NextResponse } from 'next/server';
-import { db } from '@lagchow/database';
-import { orders, pushSubscriptions } from '@lagchow/database/src/schema';
-import { eq } from 'drizzle-orm';
+import { db, orders, pushSubscriptions, eq } from '@lagchow/database';
 import { sendPushNotification } from '@lagchow/utils';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/jwt';
+
+async function getVendorIdFromSession() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('__session')?.value;
+  if (!token) return null;
+  try {
+    const decoded = await verifyToken(token);
+    return (decoded?.vendorId as string) || null;
+  } catch {
+    return null;
+  }
+}
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const vendorId = await getVendorIdFromSession();
+    if (!vendorId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const resolvedParams = await params;
     const body = await req.json();
-    const { status } = body;
+    const { status, estimatedMinutes } = body;
 
     if (!status) {
       return NextResponse.json({ error: "Missing status" }, { status: 400 });
@@ -22,18 +39,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // EDGE CASE 16: Idempotency (Network loss during acceptance)
-    // If the order is already in the exact state the vendor is trying to set, just return it!
-    if (existingOrder.status === status) {
-      return NextResponse.json(existingOrder);
-    }
-
-    // EDGE CASE 12: Vendor accepts after timeout/cancelled
-    // Ensure strict state transitions
-    if (status === 'accepted' || status === 'rejected') {
-      if (existingOrder.status !== 'pending') {
-        return NextResponse.json({ error: `Cannot ${status} an order that is currently ${existingOrder.status}.` }, { status: 409 });
-      }
+    if (existingOrder.vendorId !== vendorId) {
+      return NextResponse.json({ error: "Forbidden: Order belongs to another vendor" }, { status: 403 });
     }
 
     const currentTimestamps = (existingOrder.statusTimestamps as any) || {};
@@ -41,50 +48,42 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const updates: any = { 
       status,
-      statusTimestamps: updatedTimestamps
+      statusTimestamps: updatedTimestamps,
+      updatedAt: new Date()
     };
-    if (status === 'preparing' && body.preparationTime) {
-      const estimatedTime = new Date();
-      estimatedTime.setMinutes(estimatedTime.getMinutes() + body.preparationTime);
-      updates.estimatedReadyTime = estimatedTime;
+
+    if (estimatedMinutes && status === 'accepted') {
+      const readyTime = new Date(Date.now() + estimatedMinutes * 60000);
+      updates.estimatedReadyTime = readyTime;
     }
 
-    const [updatedOrder] = await db
-      .update(orders)
-      .set(updates)
-      .where(eq(orders.id, resolvedParams.id))
-      .returning();
-
-    if (!updatedOrder) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
+    const [updatedOrder] = await db.update(orders).set(updates).where(eq(orders.id, resolvedParams.id)).returning();
 
     // Trigger Push Notification to Customer
     try {
       const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, updatedOrder.userId));
       if (subs.length > 0) {
-        
         let title = 'Order Update';
-        let body = `Your order status changed to ${status}.`;
+        let pushBody = `Your order status changed to ${status}.`;
         
         if (status === 'accepted') {
-          title = 'Order Accepted! ✅';
-          body = `The vendor has accepted your order and is preparing it.`;
+          title = 'Order Accepted! 🎉';
+          pushBody = `The vendor has accepted your order. Est. ready in ${estimatedMinutes || 15} mins.`;
         } else if (status === 'preparing') {
-          title = 'Food is being prepared! 🍳';
-          body = `Your order is currently being prepared.`;
+          title = 'Cooking in Progress 🍳';
+          pushBody = `Your meal is currently being prepared!`;
         } else if (status === 'ready') {
-          title = 'Food is Ready! 🍲';
-          body = `Your order is ready and waiting for pickup/delivery!`;
-        } else if (status === 'rejected') {
+          title = 'Order is Ready! 🛍️';
+          pushBody = `Your order is packed and waiting for the rider to pick it up.`;
+        } else if (status === 'cancelled') {
           title = 'Order Cancelled ❌';
-          body = `Unfortunately, the vendor could not accept your order.`;
+          pushBody = `Unfortunately, your order was cancelled by the vendor.`;
         }
 
-        await Promise.all(subs.map(sub => 
+        await Promise.all(subs.map((sub: any) =>
           sendPushNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            { title, body, url: `/orders/${updatedOrder.id}` }
+            { title, body: pushBody, url: `/orders/${updatedOrder.id}` }
           ).catch(e => console.error("Push failed for sub:", e))
         ));
       }
@@ -92,9 +91,37 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       console.error("Failed to send push notification:", pushError);
     }
 
+    // Broadcast status update via WebSocket server
+    const socketUrl = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3010";
+    try {
+      await fetch(`${socketUrl}/emit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'ORDER_STATUS_CHANGED',
+          data: {
+            eventId: crypto.randomUUID(),
+            timestamp: new Date().toISOString(),
+            actorId: existingOrder.vendorId,
+            actorType: 'vendor',
+            data: {
+              orderId: updatedOrder.id,
+              status: updatedOrder.status,
+              vendorId: updatedOrder.vendorId,
+              userId: updatedOrder.userId,
+              riderId: updatedOrder.riderId,
+              estimatedReadyTime: updatedOrder.estimatedReadyTime
+            }
+          }
+        })
+      });
+    } catch (wsError) {
+      console.error("Failed to emit socket event:", wsError);
+    }
+
     return NextResponse.json(updatedOrder);
   } catch (error) {
     console.error("Error updating order status:", error);
-    return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update status" }, { status: 500 });
   }
 }

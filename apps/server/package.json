@@ -9,9 +9,12 @@
     "clean": "rm -rf dist node_modules"
   },
   "dependencies": {
+    "@lagchow/database": "workspace:*",
     "@lagchow/realtime": "workspace:*",
+    "@lagchow/utils": "workspace:*",
     "cookie": "^0.6.0",
     "cors": "^2.8.5",
+    "drizzle-orm": "^0.45.2",
     "express": "^4.19.2",
     "jose": "^5.6.3",
     "socket.io": "^4.7.5"

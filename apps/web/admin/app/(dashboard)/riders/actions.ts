@@ -4,8 +4,17 @@ import { db } from '@lagchow/database';
 import { riders } from '@lagchow/database/src/schema';
 import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/jwt';
 
 export async function onboardRider(formData: FormData) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('__admin_session')?.value;
+  const payload = token ? await verifyToken(token) : null;
+  if (!payload || (payload.role !== 'admin' && payload.role !== 'super_admin')) {
+    return { error: 'Unauthorized: Admin access required.' };
+  }
+
   const name = formData.get('name') as string;
   const email = formData.get('email') as string;
   const phone = formData.get('phone') as string;

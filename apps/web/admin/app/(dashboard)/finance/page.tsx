@@ -1,8 +1,7 @@
 import React from 'react';
 import { db } from '@lagchow/database';
 import { orders, vendors, users, riders } from '@lagchow/database/src/schema';
-import { desc, sql, eq } from 'drizzle-orm';
-import Link from 'next/link';
+import { desc, eq } from 'drizzle-orm';
 import { DollarSign, Activity, Percent } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -30,43 +29,42 @@ export default async function FinancePage() {
   .limit(100);
 
   // Calculate high level metrics
-  // In a real app we might do this with a single aggregation query, but let's do it in JS for flexibility here
   let totalGMV = 0;
-  let totalPlatformFee = 0; // Convenience fees
+  let totalPlatformFee = 0; // Convenience fees + delivery commission
   let totalDeliveryFee = 0;
   let totalMonnifyFees = 0;
 
   const enrichedLedger = ledgerOrders.map(order => {
-    const amount = order.totalAmount || 0;
+    const foodSubtotal = order.totalAmount || 0;
     const convFee = order.convenienceFee || 0;
     const devFee = order.deliveryFee || 0;
+    const grossAmount = foodSubtotal + convFee + devFee;
     
-    // Monnify Fee: 1.5% capped at 2000
-    const rawMonnify = amount * 0.015;
+    // Monnify Fee: 1.5% of gross order total capped at 2000
+    const rawMonnify = grossAmount * 0.015;
     const monnifyFee = rawMonnify > 2000 ? 2000 : rawMonnify;
 
     // Delivery Commission Logic
     let deliveryCommission = 0;
     let actualRiderPayout = devFee;
     
-    // Match based on rider type or exact delivery fee as a fallback
     if (order.riderType === 'walker' || devFee === 400) {
       deliveryCommission = 100;
-      actualRiderPayout = devFee - 100; // 300 payout
+      actualRiderPayout = Math.max(0, devFee - 100);
     } else if (order.riderType === 'bicycle' || devFee >= 500) {
       deliveryCommission = 70;
-      actualRiderPayout = devFee - 70; // 430 payout
+      actualRiderPayout = Math.max(0, devFee - 70);
     }
 
     // Platform Net Revenue = Convenience Fee + Delivery Commission - Monnify Fee
     const netPlatformFee = convFee + deliveryCommission - monnifyFee;
 
-    // Vendor Payout = Total Amount - Convenience Fee - Delivery Fee
-    const vendorPayout = amount - convFee - devFee;
+    // Vendor Payout = 100% of Food Subtotal (totalAmount stores the food subtotal)
+    const vendorPayout = foodSubtotal;
 
     // Accumulate metrics for successful/delivered orders
     if (order.status === 'delivered') {
-      totalGMV += amount;
+      totalGMV += grossAmount;
       totalPlatformFee += convFee + deliveryCommission; // Platform gross
       totalDeliveryFee += actualRiderPayout;
       totalMonnifyFees += monnifyFee;
@@ -74,6 +72,7 @@ export default async function FinancePage() {
 
     return {
       ...order,
+      grossAmount,
       monnifyFee,
       netPlatformFee,
       vendorPayout,
@@ -146,7 +145,7 @@ export default async function FinancePage() {
               ₦{totalDeliveryFee.toLocaleString()}
             </h2>
             <div className="flex items-center gap-2 mt-2 text-sm font-medium text-muted-foreground">
-              100% of delivery fees
+              Net rider delivery payouts
             </div>
           </div>
         </div>
@@ -213,7 +212,7 @@ export default async function FinancePage() {
                       </div>
                     </td>
                     <td className="p-4 font-black">
-                      ₦{order.totalAmount?.toLocaleString()}
+                      ₦{order.grossAmount.toLocaleString()}
                     </td>
                     <td className="p-4 font-bold text-white/80">
                       ₦{order.vendorPayout.toLocaleString()}

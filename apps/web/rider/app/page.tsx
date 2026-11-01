@@ -3,10 +3,23 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { Bike, LogOut, Loader2, Navigation, Bell } from 'lucide-react';
+import { Bike, LogOut, Loader2, Navigation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DeliveryPool } from '@/components/rider/delivery-pool';
 import { ActiveDelivery } from '@/components/rider/active-delivery';
+
+function getCurrentCoords(): Promise<{ currentLat?: number; currentLng?: number }> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) {
+      return resolve({});
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ currentLat: pos.coords.latitude, currentLng: pos.coords.longitude }),
+      () => resolve({}),
+      { enableHighAccuracy: true, timeout: 3500, maximumAge: 15000 }
+    );
+  });
+}
 
 export default function RiderDashboard() {
   const router = useRouter();
@@ -16,6 +29,8 @@ export default function RiderDashboard() {
   const [loading, setLoading] = useState(true);
   const [statusLoading, setStatusLoading] = useState(false);
 
+  const isOnline = rider?.status === 'online' || rider?.status === 'active';
+
   const fetchState = async () => {
     try {
       // 1. Fetch Rider Profile
@@ -23,10 +38,11 @@ export default function RiderDashboard() {
       setRider(riderRes.data);
 
       // 2. Fetch Deliveries
-      if (riderRes.data.status === 'active') {
+      const online = riderRes.data?.status === 'online' || riderRes.data?.status === 'active';
+      if (online) {
         const delRes = await axios.get('/api/deliveries');
         setActiveDelivery(delRes.data.activeDelivery);
-        setPool(delRes.data.availableDeliveries);
+        setPool(delRes.data.availableDeliveries || []);
       } else {
         setActiveDelivery(null);
         setPool([]);
@@ -47,18 +63,36 @@ export default function RiderDashboard() {
       return;
     }
     fetchState();
-    
+
     // Polling every 10 seconds for new deliveries
     const interval = setInterval(fetchState, 10000);
     return () => clearInterval(interval);
   }, [router]);
 
+  // Periodically sync rider GPS coordinates while online
+  useEffect(() => {
+    if (!rider?.id || !isOnline) return;
+    const syncGps = async () => {
+      const coords = await getCurrentCoords();
+      if (coords.currentLat !== undefined && coords.currentLng !== undefined) {
+        axios.patch('/api/riders/status', {
+          status: 'online',
+          ...coords,
+        }).catch(() => { });
+      }
+    };
+    syncGps();
+    const gpsInterval = setInterval(syncGps, 30000);
+    return () => clearInterval(gpsInterval);
+  }, [rider?.id, isOnline]);
+
   const toggleStatus = async () => {
     setStatusLoading(true);
-    const newStatus = rider?.status === 'active' ? 'offline' : 'active';
+    const newStatus = isOnline ? 'offline' : 'online';
     try {
-      await axios.patch('/api/riders/status', { status: newStatus });
-      setRider({ ...rider, status: newStatus });
+      const coords = newStatus === 'online' ? await getCurrentCoords() : {};
+      await axios.patch('/api/riders/status', { status: newStatus, ...coords });
+      setRider({ ...rider, status: newStatus, ...coords });
       if (newStatus === 'offline') {
         setActiveDelivery(null);
         setPool([]);
@@ -74,7 +108,6 @@ export default function RiderDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('riderId');
-    // Call server logout if needed
     router.replace('/login');
   };
 
@@ -88,7 +121,7 @@ export default function RiderDashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-24 font-sans selection:bg-accent selection:text-black">
-      
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-white/5 shadow-2xl">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
@@ -101,7 +134,7 @@ export default function RiderDashboard() {
               <p className="text-[10px] text-muted-foreground font-bold tracking-wider mt-0.5">LagChow</p>
             </div>
           </div>
-          
+
           <Button onClick={handleLogout} variant="ghost" size="icon" className="text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-full">
             <LogOut className="w-5 h-5" />
           </Button>
@@ -109,35 +142,34 @@ export default function RiderDashboard() {
       </header>
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-6">
-        
+
         {/* Status Toggle */}
         <div className="bg-card/50 backdrop-blur-xl border border-white/5 p-4 rounded-3xl flex items-center justify-between shadow-lg">
           <div>
             <h2 className="font-bold text-lg">{rider?.name}</h2>
             <div className="flex items-center gap-2 mt-1">
-              <div className={`w-2 h-2 rounded-full ${rider?.status === 'active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500'}`} />
+              <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500'}`} />
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                {rider?.status === 'active' ? 'Online & Ready' : 'Offline'}
+                {isOnline ? 'Online & Ready' : 'Offline'}
               </p>
             </div>
           </div>
-          
-          <Button 
+
+          <Button
             onClick={toggleStatus}
             disabled={statusLoading || activeDelivery}
             variant="outline"
-            className={`rounded-2xl h-12 px-6 font-bold transition-all ${
-              rider?.status === 'active' 
-                ? 'bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20' 
+            className={`rounded-2xl h-12 px-6 font-bold transition-all ${isOnline
+                ? 'bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20'
                 : 'bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20'
-            }`}
+              }`}
           >
-            {statusLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (rider?.status === 'active' ? 'Go Offline' : 'Go Online')}
+            {statusLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isOnline ? 'Go Offline' : 'Go Online')}
           </Button>
         </div>
 
         {/* Main Content Area */}
-        {rider?.status !== 'active' ? (
+        {!isOnline ? (
           <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
             <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
               <Navigation className="w-10 h-10 text-white/20" />
@@ -168,4 +200,5 @@ export default function RiderDashboard() {
       </div>
     </div>
   );
+}
 }

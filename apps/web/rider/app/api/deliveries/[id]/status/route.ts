@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db, orders, pushSubscriptions, eq, and } from '@lagchow/database';
+import { sql } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/jwt';
 import { sendPushNotification } from '@lagchow/utils';
@@ -41,6 +42,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: "Order not found or not assigned to you" }, { status: 404 });
     }
 
+    if (existingOrder.status === 'delivered') {
+      return NextResponse.json({ error: "Delivery has already been completed" }, { status: 409 });
+    }
+
+    const allowedTransitions: Record<string, string[]> = {
+      rider_accepted: ['rider_at_vendor'],
+      rider_at_vendor: ['out_for_delivery'],
+      out_for_delivery: ['arrived'],
+      arrived: ['delivered'],
+    };
+
+    if (!allowedTransitions[existingOrder.status]?.includes(status)) {
+      return NextResponse.json({
+        error: `Invalid status transition from ${existingOrder.status} to ${status}`
+      }, { status: 409 });
+    }
+
     const currentTimestamps = (existingOrder.statusTimestamps as any) || {};
     const updatedTimestamps = { ...currentTimestamps, [status]: new Date().toISOString() };
 
@@ -53,8 +71,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const [updatedOrder] = await db
       .update(orders)
       .set(updates)
-      .where(eq(orders.id, resolvedParams.id))
+      .where(and(
+        eq(orders.id, resolvedParams.id),
+        eq(orders.riderId, riderId),
+        eq(orders.status, existingOrder.status)
+      ))
       .returning();
+
+    if (!updatedOrder) {
+      return NextResponse.json({ error: "Delivery status was changed by another request" }, { status: 409 });
+    }
+
+    if (status === 'delivered') {
+      await db.execute(sql`
+        UPDATE riders
+        SET current_order_count = GREATEST(current_order_count - 1, 0),
+            updated_at = NOW()
+        WHERE id = ${riderId}
+          AND current_order_count > 0
+      `);
+    }
 
     // Trigger Push Notification to Customer
     try {
@@ -78,7 +114,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           pushBody = `Enjoy your LagChow!`;
         }
 
-        await Promise.all(subs.map(sub => 
+        await Promise.all(subs.map((sub: any) =>
           sendPushNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
             { title, body: pushBody, url: `/orders/${updatedOrder.id}` }

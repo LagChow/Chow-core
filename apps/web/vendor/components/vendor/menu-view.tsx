@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
-import { Plus, Edit2, Trash2, Image as ImageIcon, Loader2, Search, Filter, ChevronDown, Check, X, Clock, XCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Image as ImageIcon, Loader2, Search, UploadCloud, Check, X, Clock, XCircle } from 'lucide-react';
+import { useUploadThing } from '@/lib/uploadthing';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +29,30 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
   const [stockModalItem, setStockModalItem] = useState<any | null>(null);
   const [stockModalType, setStockModalType] = useState<'preparing' | 'outofstock'>('preparing');
   const [stockModalTime, setStockModalTime] = useState('20');
+
+  // Image upload state
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const { startUpload } = useUploadThing("imageUploader", {
+    onUploadBegin: () => {
+      setIsUploading(true);
+      setUploadProgress(0);
+    },
+    onUploadProgress: (p) => setUploadProgress(p),
+    onClientUploadComplete: (res) => {
+      if (res?.[0]?.url) {
+        setFormData(prev => ({ ...prev, image: res[0].url }));
+      }
+      setIsUploading(false);
+      setUploadProgress(100);
+    },
+    onUploadError: (err) => {
+      console.error("Upload failed:", err);
+      setIsUploading(false);
+      alert("Image upload failed. Please try again.");
+    },
+  });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -104,15 +129,10 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    await startUpload([file]);
   };
 
   const handleEditStart = (item: any) => {
@@ -377,17 +397,33 @@ export default function MenuView({ vendorId }: { vendorId: string }) {
             {/* 1. Meal Photo */}
             <div className="space-y-2">
               <label className="text-sm font-bold text-white">1. Meal Photo</label>
-              <div className="border-2 border-dashed border-white/20 rounded-2xl p-8 flex flex-col items-center justify-center bg-black/20 hover:bg-black/40 transition-colors relative group overflow-hidden">
+              <div
+                className="border-2 border-dashed border-white/20 rounded-2xl p-8 flex flex-col items-center justify-center bg-black/20 hover:bg-black/40 transition-colors relative group overflow-hidden cursor-pointer"
+                onClick={() => !isUploading && document.getElementById('meal-image-input')?.click()}
+              >
                 {formData.image ? (
-                  <img src={formData.image} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                  <>
+                    <img src={formData.image} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <p className="font-bold text-sm">&#x2191; Click to change image</p>
+                    </div>
+                  </>
+                ) : isUploading ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-10 h-10 text-accent animate-spin" />
+                    <p className="font-bold text-accent">Uploading... {uploadProgress}%</p>
+                    <div className="w-48 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-accent rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                  </div>
                 ) : (
                   <>
-                    <ImageIcon className="w-10 h-10 text-muted-foreground mb-3" />
-                    <p className="font-bold">Upload Image</p>
-                    <p className="text-xs text-muted-foreground mt-1">Drag & Drop supported (JPG, PNG, WEBP)</p>
+                    <UploadCloud className="w-10 h-10 text-muted-foreground mb-3" />
+                    <p className="font-bold">Click to Upload Image</p>
+                    <p className="text-xs text-muted-foreground mt-1">JPG, PNG, WEBP &mdash; max 4MB</p>
                   </>
                 )}
-                <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                <input id="meal-image-input" type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isUploading} />
               </div>
             </div>
 

@@ -1,17 +1,25 @@
 import React from 'react';
 import { db } from '@lagchow/database';
-import { riders, orders } from '@lagchow/database/src/schema';
-import { desc, sql, eq } from 'drizzle-orm';
+import { riders } from '@lagchow/database/src/schema';
+import { sql, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import Link from 'next/link';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/jwt';
 import { OnboardRiderModal } from '@/components/onboard-rider-modal';
 
 // Server Action for updating rider status
 async function updateRiderStatus(riderId: string, newStatus: string) {
   'use server';
+
+  const cookieStore = await cookies();
+  const token = cookieStore.get('__admin_session')?.value;
+  const payload = token ? await verifyToken(token) : null;
+  if (!payload || (payload.role !== 'admin' && payload.role !== 'super_admin')) {
+    throw new Error('Unauthorized');
+  }
   
   await db.update(riders)
-    .set({ status: newStatus })
+    .set({ status: newStatus, updatedAt: new Date() })
     .where(eq(riders.id, riderId));
     
   revalidatePath('/riders');
@@ -42,7 +50,11 @@ export default async function RidersPage({
   `;
 
   if (statusFilter && statusFilter !== 'all') {
-    rawQuery = sql`${rawQuery} WHERE r.status = ${statusFilter}`;
+    if (statusFilter === 'active' || statusFilter === 'online') {
+      rawQuery = sql`${rawQuery} WHERE r.status IN ('online', 'active')`;
+    } else {
+      rawQuery = sql`${rawQuery} WHERE r.status = ${statusFilter}`;
+    }
   }
 
   rawQuery = sql`${rawQuery} GROUP BY r.id ORDER BY r.created_at DESC`;
@@ -61,7 +73,7 @@ export default async function RidersPage({
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 border-r border-white/10 pr-4">
             <a href="/riders?status=all" className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${!statusFilter || statusFilter === 'all' ? 'bg-accent text-black' : 'bg-white/5 hover:bg-white/10 text-white'}`}>All</a>
-            <a href="/riders?status=active" className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${statusFilter === 'active' ? 'bg-accent text-black' : 'bg-white/5 hover:bg-white/10 text-white'}`}>Active</a>
+            <a href="/riders?status=active" className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${statusFilter === 'active' || statusFilter === 'online' ? 'bg-accent text-black' : 'bg-white/5 hover:bg-white/10 text-white'}`}>Online</a>
             <a href="/riders?status=offline" className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${statusFilter === 'offline' ? 'bg-accent text-black' : 'bg-white/5 hover:bg-white/10 text-white'}`}>Offline</a>
             <a href="/riders?status=pending" className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${statusFilter === 'pending' ? 'bg-accent text-black' : 'bg-white/5 hover:bg-white/10 text-white'}`}>Pending</a>
           </div>
@@ -94,76 +106,79 @@ export default async function RidersPage({
                   </td>
                 </tr>
               ) : (
-                allRiders.map((rider: any) => (
-                  <tr key={rider.id} className="hover:bg-white/[0.01] transition-colors group">
-                    <td className="p-4 pl-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold uppercase">
-                          {rider.name.substring(0, 2)}
+                allRiders.map((rider: any) => {
+                  const isOnline = rider.status === 'online' || rider.status === 'active';
+                  return (
+                    <tr key={rider.id} className="hover:bg-white/[0.01] transition-colors group">
+                      <td className="p-4 pl-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold uppercase">
+                            {rider.name.substring(0, 2)}
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{rider.name}</div>
+                            <div className="text-xs text-muted-foreground">{rider.phone}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{rider.name}</div>
-                          <div className="text-xs text-muted-foreground">{rider.phone}</div>
+                      </td>
+                      <td className="p-4">
+                        <span className="px-2 py-1 bg-white/5 rounded text-xs font-semibold uppercase tracking-wider text-white/80">
+                          {rider.vehicleType}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                          isOnline ? 'bg-green-500/20 text-green-400' :
+                          rider.status === 'offline' ? 'bg-gray-500/20 text-gray-400' :
+                          rider.status === 'suspended' ? 'bg-red-500/20 text-red-400' :
+                          'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          {isOnline ? 'online' : rider.status}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="font-black text-lg">{rider.total_deliveries}</div>
+                      </td>
+                      <td className="p-4 pr-6 text-right">
+                        <div className="flex justify-end gap-2">
+                          {!isOnline && rider.status !== 'suspended' && (
+                            <form action={async () => {
+                              'use server';
+                              await updateRiderStatus(rider.id, 'online');
+                            }}>
+                              <button type="submit" className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-green-500/20 text-green-400 hover:bg-green-500/10 transition-colors">
+                                Approve
+                              </button>
+                            </form>
+                          )}
+                          {isOnline && (
+                            <form action={async () => {
+                              'use server';
+                              await updateRiderStatus(rider.id, 'suspended');
+                            }}>
+                              <button type="submit" className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors">
+                                Suspend
+                              </button>
+                            </form>
+                          )}
+                          {rider.status === 'suspended' && (
+                            <form action={async () => {
+                              'use server';
+                              await updateRiderStatus(rider.id, 'offline');
+                            }}>
+                              <button type="submit" className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/10 transition-colors">
+                                Unsuspend
+                              </button>
+                            </form>
+                          )}
+                          <button className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-colors">
+                            Track
+                          </button>
                         </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="px-2 py-1 bg-white/5 rounded text-xs font-semibold uppercase tracking-wider text-white/80">
-                        {rider.vehicleType}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                        rider.status === 'active' ? 'bg-green-500/20 text-green-400' :
-                        rider.status === 'offline' ? 'bg-gray-500/20 text-gray-400' :
-                        rider.status === 'suspended' ? 'bg-red-500/20 text-red-400' :
-                        'bg-yellow-500/20 text-yellow-400'
-                      }`}>
-                        {rider.status}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="font-black text-lg">{rider.total_deliveries}</div>
-                    </td>
-                    <td className="p-4 pr-6 text-right">
-                      <div className="flex justify-end gap-2">
-                        {rider.status !== 'active' && rider.status !== 'suspended' && (
-                          <form action={async () => {
-                            'use server';
-                            await updateRiderStatus(rider.id, 'active');
-                          }}>
-                            <button type="submit" className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-green-500/20 text-green-400 hover:bg-green-500/10 transition-colors">
-                              Approve
-                            </button>
-                          </form>
-                        )}
-                        {rider.status === 'active' && (
-                          <form action={async () => {
-                            'use server';
-                            await updateRiderStatus(rider.id, 'suspended');
-                          }}>
-                            <button type="submit" className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors">
-                              Suspend
-                            </button>
-                          </form>
-                        )}
-                        {rider.status === 'suspended' && (
-                          <form action={async () => {
-                            'use server';
-                            await updateRiderStatus(rider.id, 'offline');
-                          }}>
-                            <button type="submit" className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/10 transition-colors">
-                              Unsuspend
-                            </button>
-                          </form>
-                        )}
-                        <button className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-colors">
-                          Track
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
