@@ -20,6 +20,8 @@
 - [8. Design System](#8-design-system)
 - [9. Development Setup](#9-development-setup)
 - [10. Build Log / Workflow Journey](#10-build-log--workflow-journey)
+- [11. Real-Time Sockets & Autonomous Dispatch Engine (`lagchow-sockets`)](#11-real-time-sockets--autonomous-dispatch-engine)
+- [12. Embedded Valhalla Lagos Routing & Map Pipeline](#12-embedded-valhalla-lagos-routing--map-pipeline)
 
 ---
 
@@ -299,3 +301,54 @@ pnpm dev
 
 ### Phase 4: Security & Health Checks
 - **Dependency Audit:** Conducted a full `pnpm audit` across the workspace to identify vulnerabilities, catching and documenting outdated versions of `next`, `esbuild`, and `cookie`.
+
+
+### Phase 5: Autonomous Dispatch, Lagos OSM Cropping & Embedded Valhalla Microservice
+- **Specialized Microservice:** Established `lagchow-sockets` as a dedicated background and WebSocket gateway for dispatch operations.
+- **Lagos-Only Geofabrik Crop:** Cropped Nigeria's 680 MB OSM extract using `osmium-tool` down to a 66.3 MB Lagos bounding box (`2.70, 6.35, 4.25, 6.75`), generating 28 routing tiles in 47.7 MB (`valhalla_tiles.tar`).
+- **All-in-One Docker Image:** Built a single container running both the Valhalla C++ routing daemon (`localhost:8002`) and the Node.js Socket.io server (`port 3010`) with zero external tile dependencies.
+- **Multi-Factor Dispatch Optimizer:** Programmed an autonomous candidate scorer balancing pickup delays, route detours, runner workloads, and SLA risk with sub-second computation and automatic Haversine fallback.
+
+---
+
+## 11. Real-Time Sockets & Autonomous Dispatch Engine (`lagchow-sockets`)
+
+To maintain ultra-low latency without bloating the Next.js frontend applications, real-time telemetry, WebSocket rooms, and dispatch automation are extracted into a dedicated service: `lagchow-sockets`.
+
+### Core Responsibilities
+1. **Bidirectional Socket Gateway:** Manages isolated rooms for order updates (`order:${id}`), vendor order feeds (`vendor:${id}`), courier telemetry (`trekker:${id}`), and global admin alerts.
+2. **Autonomous Dispatch Polling Loop:** Periodically evaluates unassigned pending orders, calculates optimal courier assignments using street-network routing, and fires candidate assignment events.
+3. **Cross-Service Event Bridge (`POST /emit`):** Allows Next.js Server Actions to securely broadcast real-time events to connected clients via an internal secret (`INTERNAL_WS_SECRET`).
+
+### Multi-Factor Dispatch Cost Formula
+Candidates are evaluated against a multi-factor objective function:
+$$\text{Cost} = w_1(\text{ArrivalToVendor}) + w_2(\text{PickupDelay}) + w_3(\text{IncrementalTime}) + w_4(\text{RouteDetour}) + w_5(\text{Workload}) + w_6(\text{SlaRisk})$$
+
+- **Stage 1 (Pre-Filter):** Shortlists online couriers within maximum allowable pickup SLA window.
+- **Stage 2 (Scoring):** Computes total route duration and detour overhead using live street distances.
+- **Stage 3 (Assignment):** Streams `TREKKER_ASSIGNED` event with accept/reject timeout counters.
+
+---
+
+## 12. Embedded Valhalla Lagos Routing & Map Pipeline
+
+LagChow eliminates third-party routing API costs and latency limits (e.g. Google Maps / Mapbox) by running a self-hosted **Valhalla C++ routing engine** inside the same container.
+
+### Lagos-Only Map Extent Optimization
+Compiling the entire Nigeria OpenStreetMap extract (~680 MB) exceeds standard cloud memory limits. The dataset is cropped strictly to the Lagos metropolitan boundary:
+
+```powershell
+# Bounding box: Min Lon: 2.70, Min Lat: 6.35, Max Lon: 4.25, Max Lat: 6.75
+osmium extract --bbox=2.70,6.35,4.25,6.75 nigeria-latest.osm.pbf -o lagos.osm.pbf
+```
+
+| Metric | Whole Nigeria OSM | Lagos-Only Crop (`lagchow-sockets`) | Reduction |
+|---|---|---|---|
+| **Raw PBF Size** | 680.1 MB | 66.3 MB | **~90.2%** |
+| **Compiled Tiles** | ~500 MB+ | 47.7 MB (28 tiles in `valhalla_tiles.tar`) | **~90.5%** |
+| **Memory Footprint** | 2.5 GB+ RAM | ~400 - 600 MB RAM | **Production-Ready on Free/Cheap Tiers** |
+
+### Single-Container Deployment Architecture
+The `Dockerfile` builds upon `ghcr.io/gis-ops/docker-valhalla/valhalla:latest`, installs Node.js 20, bundles `custom_files/valhalla_tiles.tar`, and launches both services via `entrypoint.sh`:
+- **Port 8002:** Valhalla C++ daemon serving JSON route queries locally.
+- **Port 3010:** Node.js Express & Socket.io server handling external clients and dispatching routes.

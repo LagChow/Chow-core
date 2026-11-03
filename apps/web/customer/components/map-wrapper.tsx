@@ -23,7 +23,10 @@ export function MapWrapper() {
 
   useEffect(() => {
     fetch('/api/vendors')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to fetch vendors: ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         if (data.vendors) {
           setVendors(data.vendors.slice(0, 8)); // Just show a few for the landing page

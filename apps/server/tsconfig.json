@@ -1,8 +1,10 @@
 {
   "extends": "@lagchow/typescript-config/base.json",
   "compilerOptions": {
+    "target": "ES2022",
     "module": "CommonJS",
     "moduleResolution": "Node",
+    "ignoreDeprecations": "5.0",
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,

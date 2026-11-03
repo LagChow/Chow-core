@@ -1,10 +1,11 @@
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { users, verificationTokens, savedVendors, vendors, categories, items, deliveryModes, orders, orderItems, admins, riders, platformSettings, broadcasts, pushSubscriptions } from './schema';
+import * as schema from './schema';
 
-const schema = { users, verificationTokens, savedVendors, vendors, categories, items, deliveryModes, orders, orderItems, admins, riders, platformSettings, broadcasts, pushSubscriptions };
+const connectionString =
+  process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/lagchow';
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon(connectionString);
 
 const createDb = () => drizzle(sql, { schema });
 

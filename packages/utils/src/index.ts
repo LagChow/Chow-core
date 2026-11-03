@@ -5,6 +5,9 @@
 import { CURRENCY } from "@lagchow/config";
 
 export * from './push';
+export * from './dispatch';
+export * from './monnify';
+
 /** Format a number as Naira currency */
 export function formatPrice(amount: number): string {
   return `${CURRENCY}${amount.toLocaleString("en-NG")}`;

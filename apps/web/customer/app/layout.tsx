@@ -19,8 +19,13 @@ import { unstable_cache } from 'next/cache';
 
 const getMaintenanceMode = unstable_cache(
   async () => {
-    const record = await db.select().from(platformSettings).where(eq(platformSettings.key, 'maintenance_mode')).limit(1);
-    return record[0]?.value === true;
+    try {
+      const record = await db.select().from(platformSettings).where(eq(platformSettings.key, 'maintenance_mode')).limit(1);
+      return record[0]?.value === true;
+    } catch (e) {
+      console.warn('[Layout] Maintenance check fallback to false:', e);
+      return false;
+    }
   },
   ['maintenance_mode_flag'],
   { revalidate: 60, tags: ['maintenance_mode'] }
