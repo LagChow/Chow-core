@@ -1,3 +1,4 @@
+
 # 🍔 LagChow — Campus Food Delivery Ecosystem
 
 > **A real-time, multi-platform campus food delivery network connecting students, local vendors, and student riders through a unified monorepo ecosystem.**
@@ -20,7 +21,7 @@
 - [8. Design System](#8-design-system)
 - [9. Development Setup](#9-development-setup)
 - [10. Build Log / Workflow Journey](#10-build-log--workflow-journey)
-- [11. Real-Time Sockets & Autonomous Dispatch Engine (`lagchow-sockets`)](#11-real-time-sockets--autonomous-dispatch-engine)
+- [11. Real-Time Sockets & Autonomous Dispatch Engine (`chow-core-sockets`)](#11-real-time-sockets--autonomous-dispatch-engine)
 - [12. Embedded Valhalla Lagos Routing & Map Pipeline](#12-embedded-valhalla-lagos-routing--map-pipeline)
 
 ---
@@ -304,16 +305,16 @@ pnpm dev
 
 
 ### Phase 5: Autonomous Dispatch, Lagos OSM Cropping & Embedded Valhalla Microservice
-- **Specialized Microservice:** Established `lagchow-sockets` as a dedicated background and WebSocket gateway for dispatch operations.
+- **Specialized Microservice:** Established `chow-core-sockets` as a dedicated background and WebSocket gateway for dispatch operations.
 - **Lagos-Only Geofabrik Crop:** Cropped Nigeria's 680 MB OSM extract using `osmium-tool` down to a 66.3 MB Lagos bounding box (`2.70, 6.35, 4.25, 6.75`), generating 28 routing tiles in 47.7 MB (`valhalla_tiles.tar`).
 - **All-in-One Docker Image:** Built a single container running both the Valhalla C++ routing daemon (`localhost:8002`) and the Node.js Socket.io server (`port 3010`) with zero external tile dependencies.
 - **Multi-Factor Dispatch Optimizer:** Programmed an autonomous candidate scorer balancing pickup delays, route detours, runner workloads, and SLA risk with sub-second computation and automatic Haversine fallback.
 
 ---
 
-## 11. Real-Time Sockets & Autonomous Dispatch Engine (`lagchow-sockets`)
+## 11. Real-Time Sockets & Autonomous Dispatch Engine (`chow-core-sockets`)
 
-To maintain ultra-low latency without bloating the Next.js frontend applications, real-time telemetry, WebSocket rooms, and dispatch automation are extracted into a dedicated service: `lagchow-sockets`.
+To maintain ultra-low latency without bloating the Next.js frontend applications, real-time telemetry, WebSocket rooms, and dispatch automation are extracted into a dedicated service: `chow-core-sockets`.
 
 ### Architecture
 
@@ -415,7 +416,7 @@ Compiling the entire Nigeria OpenStreetMap extract (~680 MB) exceeds standard cl
 osmium extract --bbox=2.70,6.35,4.25,6.75 nigeria-latest.osm.pbf -o lagos.osm.pbf
 ```
 
-| Metric | Whole Nigeria OSM | Lagos-Only Crop (`lagchow-sockets`) | Reduction |
+| Metric | Whole Nigeria OSM | Lagos-Only Crop (`chow-core-sockets`) | Reduction |
 |---|---|---|---|
 | **Raw PBF Size** | 680.1 MB | 66.3 MB | **~90.2%** |
 | **Compiled Tiles** | ~500 MB+ | 47.7 MB (28 tiles in `valhalla_tiles.tar`) | **~90.5%** |
