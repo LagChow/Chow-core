@@ -26,5 +26,10 @@
       "name": "pnpm",
       "version": "10.33.0"
     }
+  },
+  "pnpm": {
+    "overrides": {
+      "effect": "~3.22.1"
+    }
   }
 }
