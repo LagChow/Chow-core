@@ -29,11 +29,7 @@ export default function TermsPage() {
       <section className="bg-card">
         <div className="max-w-4xl mx-auto px-6 py-16 md:py-24">
           <div className="prose prose-invert prose-lg max-w-none">
-            <p className="font-semibold text-white mb-2">Version 1.0 · University of Lagos Campus</p>
-            <div className="bg-accent/10 border border-accent/20 rounded-lg p-4 mb-8 text-sm text-accent">
-              <p className="font-bold mb-1">Disclaimer</p>
-              <p>Before use: this is a founder-drafted operational document based on decisions made across the LagChow legal pack so far — it has not been reviewed by a licensed Nigerian lawyer. Have one review it before publishing, particularly Sections 9 (Limitation of Liability) and 13 (Governing Law). This document should be read alongside the LagChow Refund & Cancellation Policy and Privacy Policy, referenced throughout rather than repeated here.</p>
-            </div>
+            <p className="font-semibold text-white mb-8">Version 1.0 · University of Lagos Campus</p>
 
             <div className="space-y-12 text-muted-foreground leading-relaxed">
               <div>

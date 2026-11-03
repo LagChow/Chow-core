@@ -9,12 +9,12 @@ export const ourFileRouter = {
     .middleware(async ({ req }) => {
       // This code runs on your server before upload
       // You can add authentication here if needed
-      return { };
+      return {};
     })
     .onUploadComplete(async ({ metadata, file }) => {
       // This code RUNS ON YOUR SERVER after upload
-      console.log("Upload complete for url:", file.url);
-      return { url: file.url };
+      console.log("Upload complete for url:", file.ufsUrl);
+      return { url: file.ufsUrl };
     }),
 } satisfies FileRouter;
 

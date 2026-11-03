@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db, items, categories, eq } from '@lagchow/database';
+import { db, items, categories, eq, inArray } from '@lagchow/database';
 
 export async function GET(req: Request) {
   try {
@@ -16,11 +16,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ categories: [], items: [] });
     }
 
-    // Fetch items for those categories
-    // For a complex query, you'd use IN operator, but here we can just fetch all and filter or query properly.
-    const allItems = await db.query.items.findMany(); // Assuming a simple db, or we map
-    const categoryIds = vendorCategories.map(c => c.id);
-    const vendorItems = allItems.filter(item => categoryIds.includes(item.categoryId));
+    // Fetch only items belonging to this vendor's categories
+    const categoryIds = vendorCategories.map((c: { id: string }) => c.id);
+    const vendorItems = await db
+      .select()
+      .from(items)
+      .where(inArray(items.categoryId, categoryIds));
 
     return NextResponse.json({
       categories: vendorCategories,

@@ -102,7 +102,7 @@ export function CartDrawer() {
                   router.push("/checkout");
                 }
               }}
-              className="w-full bg-accent hover:bg-accent/90 text-black font-black h-14 rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all text-lg"
+              className="w-full bg-accent hover:bg-accent/90 text-black font-black h-14 rounded-xl shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all text-lg"
             >
               Checkout
             </Button>

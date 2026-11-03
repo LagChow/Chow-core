@@ -68,7 +68,10 @@ export default function HomePage() {
 
   useEffect(() => {
     fetch('/api/vendors')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to fetch vendors: ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         if (data.vendors) {
           // Parse rating back to number for the frontend

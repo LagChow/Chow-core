@@ -1,501 +1,565 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/cart-context';
 import { useUser } from '@/hooks/use-user';
 import { AuthModal } from '@/components/auth-modal';
-import { ChevronLeft, ChevronRight, MapPin, Bike, CalendarDays, Wallet, Globe, User, MessageSquare, Gift, CheckCircle2, Clock, MoveDown } from 'lucide-react';
-import { toast } from "sonner";
+import { DeliveryAddressModal } from '@/components/delivery-address-modal';
+import { MapPin, ArrowLeft, ShieldCheck, Wallet, CreditCard, Banknote, Navigation, Info, Sparkles, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import Image from 'next/image';
-import axios from 'axios';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 
-import { UNILAG_LOCATIONS } from '@/lib/constants';
+const CAMPUS_COORDINATES: Record<string, { lat: number; lng: number }> = {
+  "New Hall": { lat: 6.5173, lng: 3.3912 },
+  "Moremi Hall": { lat: 6.5165, lng: 3.3934 },
+  "Jaja Hall": { lat: 6.5142, lng: 3.3975 },
+  "Mariere Hall": { lat: 6.5150, lng: 3.3958 },
+  "Eni Njoku Hall": { lat: 6.5180, lng: 3.3905 },
+  "Sodeinde Hall": { lat: 6.5185, lng: 3.3895 },
+  "Makama Bida Hall": { lat: 6.5168, lng: 3.3920 },
+  "Fagunwa Hall": { lat: 6.5155, lng: 3.3940 },
+  "Kofo Ademola Hall": { lat: 6.5160, lng: 3.3930 },
+  "Amina Hall": { lat: 6.5120, lng: 3.3880 },
+  "Biobaku Hall": { lat: 6.5135, lng: 3.3875 },
+  "El Kanemi Hall": { lat: 6.5178, lng: 3.3918 },
+  "Honours Hall": { lat: 6.5162, lng: 3.3925 },
+  "Queen Amina Hall": { lat: 6.5120, lng: 3.3880 },
+  "Success Hall": { lat: 6.5190, lng: 3.3860 },
+  "Default": { lat: 6.5158, lng: 3.3898 }, // UNILAG Senate Building / Center
+};
 
-function getConvenienceFee(amount: number) {
-  if (amount < 2000) return 0;
-  if (amount < 4000) return 200;
-  if (amount < 6000) return 300;
-  if (amount < 8000) return 400;
-  if (amount < 10000) return 500;
-  if (amount < 15000) return 600;
-  return 700;
+function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2); 
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); 
+  return R * c; // Distance in km
 }
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, totalAmount, totalItems, deliveryLocation } = useCart();
+  const { items, totalAmount, deliveryLocation, setDeliveryLocation, clearCart } = useCart();
   const { user, loading: userLoading } = useUser();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   
+  const [roomNumber, setRoomNumber] = useState("");
+  const [notes, setNotes] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("transfer");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  
+  // Delivery Engine States
   const [deliveryModes, setDeliveryModes] = useState<any[]>([]);
-  const [selectedMode, setSelectedMode] = useState<any>(null);
-  const [vendorLocation, setVendorLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [isLoadingModes, setIsLoadingModes] = useState(true);
-  
-  // Accordion open states
-  const [showAddress, setShowAddress] = useState(false);
-  const [showNote, setShowNote] = useState(false);
-  
-  // Payment
-  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "online" | "transfer">("transfer");
+  const [selectedMode, setSelectedMode] = useState<any | null>(null);
+  const [vendorDetails, setVendorDetails] = useState<Record<string, any>>({});
+  const [maxDistanceKm, setMaxDistanceKm] = useState<number>(0);
 
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    hall: "",
-    room: "",
-    note: "",
-    customAddress: ""
-  });
-
-  // Prefill user data
-  useEffect(() => {
-    if (!form.hall) {
-      let defaultHall = "";
-      let customAddr = "";
-      
-      const locToUse = deliveryLocation || (user ? (user.hallOfResidence || user.landmark || "") : "");
-      
-      if (locToUse) {
-         // Check if locToUse matches any UNILAG_LOCATIONS exactly
-         const found = UNILAG_LOCATIONS.find(loc => loc.toLowerCase() === locToUse.split(',')[0].toLowerCase() || loc.toLowerCase() === locToUse.toLowerCase());
-         if (found) {
-           defaultHall = found;
-         } else {
-           defaultHall = "Other";
-           customAddr = locToUse.split(',')[0]; // Store the primary name
-         }
-      }
-      
-      setForm(prev => ({
-        ...prev,
-        hall: defaultHall,
-        customAddress: customAddr,
-        room: user ? ((user as any).roomNumber || "") : ""
-      }));
+  // Sync user's default hostel to deliveryLocation if not modified yet
+  React.useEffect(() => {
+    if (user?.hallOfResidence && deliveryLocation === "New Hall (Eni-Njoku)") {
+      setDeliveryLocation(`${user.hallOfResidence}${user.landmark ? ` (${user.landmark})` : ''}`);
     }
-  }, [user, deliveryLocation]);
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [maxPrepTime, setMaxPrepTime] = useState(15);
+  }, [user]);
 
-  // Calculations
-  const uniqueVendors = useMemo(() => new Set(items.map(i => i.vendorId)).size, [items]);
-  const deliveryFee = selectedMode ? selectedMode.baseFee * uniqueVendors : 0;
-  const convenienceFee = getConvenienceFee(totalAmount);
-  const grandTotal = totalAmount + deliveryFee + convenienceFee;
-
-  // Haversine distance formula
-  function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371; // km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  }
-
-  // Fetch Vendor & Delivery Modes
-  useEffect(() => {
-    if (items.length === 0) return;
-    const vendorId = items[0].vendorId;
-
-    async function loadData() {
-      setIsLoadingModes(true);
+  // Fetch Delivery Modes & Vendor Coordinates
+  React.useEffect(() => {
+    async function loadLogistics() {
       try {
-        const [vendorRes, modesRes] = await Promise.all([
-          axios.get(`/api/vendors/${vendorId}`),
-          axios.get(`/api/delivery-modes`)
-        ]);
+        const modesRes = await fetch('/api/delivery-modes');
+        if (modesRes.ok) {
+          const modes = await modesRes.json();
+          setDeliveryModes(modes);
+        }
 
-        const vendorData = vendorRes.data.vendor || vendorRes.data;
-        const modesData = modesRes.data;
-        const menuItems = vendorData.categories ? vendorData.categories.flatMap((c: any) => c.items) : [];
-
-        // Calculate max prep time
-        let maxPrep = 15;
-        const isHighDemand = vendorData.queueStatus?.demand === 'High' || vendorData.queueStatus?.demand === 'Very High' || vendorData.queueStatus?.status === 'Rush Hour';
-        
-        items.forEach(cartItem => {
-          const dbItem = menuItems.find((i: any) => i.id === cartItem.id);
-          if (dbItem) {
-            const prep = isHighDemand && dbItem.peakPreparationTime ? dbItem.peakPreparationTime : dbItem.preparationTime;
-            if (prep && Number(prep) > maxPrep) maxPrep = Number(prep);
+        const uniqueVIds = Array.from(new Set(items.map(i => i.vendorId)));
+        const vMap: Record<string, any> = {};
+        for (const vid of uniqueVIds) {
+          const vRes = await fetch(`/api/vendors/${vid}`);
+          if (vRes.ok) {
+            const payload = await vRes.json();
+            vMap[vid] = payload.vendor || payload;
           }
-        });
-        setMaxPrepTime(maxPrep);
-
-          // Mock customer location (Akoka, UNILAG)
-          const customerLat = 6.5268;
-          const customerLng = 3.3868;
-
-          const vLat = vendorData.lat || 6.5314; // Default to Daleko
-          const vLng = vendorData.lng || 3.3383;
-
-          setVendorLocation({ lat: vLat, lng: vLng });
-
-          const distance = getDistance(vLat, vLng, customerLat, customerLng);
-
-          // Filter suitable modes
-          const suitableModes = modesData.filter((m: any) => distance <= m.maxDistanceKm && m.isActive);
-          setDeliveryModes(suitableModes);
-          
-          if (suitableModes.length > 0) {
-            setSelectedMode(suitableModes[0]);
-          }
-      } catch (e) {
-        console.error(e);
+        }
+        setVendorDetails(vMap);
+      } catch (err) {
+        console.error("Failed to load logistics data", err);
       }
-      setIsLoadingModes(false);
     }
-    
-    loadData();
+    if (items.length > 0) loadLogistics();
   }, [items]);
 
-  // If cart is empty, redirect home
-  useEffect(() => {
-    if (items.length === 0) {
-      router.push("/stores");
-    }
-  }, [items, router]);
+  // Calculate Distance and auto-select Delivery Mode
+  React.useEffect(() => {
+    if (deliveryModes.length === 0 || Object.keys(vendorDetails).length === 0) return;
 
-  if (items.length === 0) return null;
+    // Resolve user coordinates
+    let userLat = user?.lat;
+    let userLng = user?.lng;
+
+    if (!userLat || !userLng) {
+      // Fallback to matching Hall string
+      const matchedHall = Object.keys(CAMPUS_COORDINATES).find(h => deliveryLocation.includes(h));
+      const fallback = matchedHall ? CAMPUS_COORDINATES[matchedHall] : CAMPUS_COORDINATES["Default"];
+      userLat = fallback.lat;
+      userLng = fallback.lng;
+    }
+
+    // Find max distance across all cart vendors
+    let maxDist = 0.5; // minimum default 500m
+    Object.values(vendorDetails).forEach((v: any) => {
+      if (v.lat && v.lng && userLat && userLng) {
+        const dist = getDistanceFromLatLonInKm(userLat, userLng, v.lat, v.lng);
+        if (dist > maxDist) maxDist = dist;
+      }
+    });
+
+    setMaxDistanceKm(Number(maxDist.toFixed(2)));
+
+    // Filter eligible modes (where mode's maxDistanceKm >= calculated distance)
+    // Modes are sorted by baseFee ascending from the API
+    const eligibleModes = deliveryModes.filter(m => m.maxDistanceKm >= maxDist);
+    if (eligibleModes.length > 0) {
+      setSelectedMode(eligibleModes[0]); // Pick cheapest eligible mode
+    } else {
+      // If distance exceeds all thresholds, pick the highest capacity mode
+      setSelectedMode(deliveryModes[deliveryModes.length - 1]);
+    }
+  }, [deliveryModes, vendorDetails, deliveryLocation, user]);
+
+  // Group items by vendor
+  const vendorGroups = items.reduce((groups, item) => {
+    const vId = item.vendorId;
+    if (!groups[vId]) {
+      groups[vId] = {
+        vendorName: item.vendorName,
+        items: []
+      };
+    }
+    groups[vId].items.push(item);
+    return groups;
+  }, {} as Record<string, { vendorName: string; items: typeof items }>);
+
+  const vendorCount = Object.keys(vendorGroups).length;
+  const baseDeliveryFee = selectedMode ? selectedMode.baseFee : 300; 
+  const totalDeliveryFee = baseDeliveryFee * Math.max(1, vendorCount);
+  
+  // Dynamic Convenience Fee Logic
+  const getConvenienceFee = (subtotal: number) => {
+    if (subtotal === 0) return 0;
+    if (subtotal < 2000) return 100;
+    if (subtotal < 5000) return 150;
+    const rawFee = Math.round(subtotal * 0.05);
+    return Math.min(500, rawFee); // Cap at ₦500 max!
+  };
+
+  const serviceFee = getConvenienceFee(totalAmount); 
+  const grandTotal = totalAmount + totalDeliveryFee + serviceFee;
+
+  if (!userLoading && items.length === 0 && !isSubmitting) {
+    router.push('/');
+    return null;
+  }
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Auth Gate
     if (!user) {
-      setIsAuthModalOpen(true);
+      setIsAuthOpen(true);
       return;
     }
-    
-    if (!form.hall) {
-      toast.error("Please select your delivery location.");
-      setShowAddress(true);
-      return;
-    }
-    
-    if (form.hall === "Other" && !form.customAddress) {
-      toast.error("Please describe your location.");
-      setShowAddress(true);
-      return;
-    }
-    
-    setIsPlacingOrder(true);
-    try {
-      // Group items by vendor
-      const itemsByVendor = items.reduce((acc: any, item) => {
-        if (!acc[item.vendorId]) acc[item.vendorId] = [];
-        acc[item.vendorId].push(item);
-        return acc;
-      }, {});
 
-      const vendorIds = Object.keys(itemsByVendor);
-      
-      // Place an order for each vendor separately
-      for (const vId of vendorIds) {
-        const vItems = itemsByVendor[vId];
-        const vTotalAmount = vItems.reduce((sum: number, i: any) => sum + (i.price * i.quantity), 0);
-        
-        await axios.post("/api/orders", {
-          vendorId: vId,
-          items: vItems,
-          deliveryModeId: selectedMode?.id,
-          totalAmount: vTotalAmount,
-          deliveryFee: selectedMode ? selectedMode.baseFee : 0, // Fee per vendor
-          convenienceFee: getConvenienceFee(vTotalAmount), // Pro-rated or calculated per vendor
-          deliveryAddress: { hall: form.hall === "Other" ? form.customAddress : form.hall, room: form.room },
-          notes: form.note,
-          paymentMethod
+    setIsSubmitting(true);
+    
+    // Resolve coordinates to attach to the order
+    let resolvedLat = user?.lat;
+    let resolvedLng = user?.lng;
+    if (!resolvedLat || !resolvedLng) {
+      const matchedHall = Object.keys(CAMPUS_COORDINATES).find(h => deliveryLocation.includes(h));
+      const fallback = matchedHall ? CAMPUS_COORDINATES[matchedHall] : CAMPUS_COORDINATES["Default"];
+      resolvedLat = fallback.lat;
+      resolvedLng = fallback.lng;
+    }
+
+    try {
+      const createdOrderIds: string[] = [];
+
+      // Loop through each vendor group and create a separate order in the database
+      for (const [vendorId, group] of Object.entries(vendorGroups)) {
+        const vTotalAmount = group.items.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        const vConvenienceFee = getConvenienceFee(vTotalAmount);
+
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vendorId,
+            items: group.items,
+            totalAmount: vTotalAmount,
+            deliveryFee: baseDeliveryFee,
+            convenienceFee: vConvenienceFee,
+            deliveryModeId: selectedMode?.id || null,
+            deliveryLat: resolvedLat,
+            deliveryLng: resolvedLng,
+            deliveryAddress: {
+              location: deliveryLocation,
+              room: roomNumber,
+            },
+            notes,
+            paymentMethod
+          })
         });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Failed to place order');
+        }
+
+        const newOrder = await res.json();
+        createdOrderIds.push(newOrder.id);
+      }
+
+      // If user chose online payment (Bank Transfer or Card), initialize Monnify gateway
+      if (paymentMethod === 'transfer' || paymentMethod === 'card') {
+        try {
+          const payInitRes = await fetch('/api/payments/initialize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderIds: createdOrderIds }),
+          });
+
+          if (payInitRes.ok) {
+            const payData = await payInitRes.json();
+            if (payData.checkoutUrl) {
+              clearCart();
+              window.location.href = payData.checkoutUrl;
+              return;
+            }
+          } else {
+            const errData = await payInitRes.json();
+            console.error("Monnify init error:", errData);
+          }
+        } catch (payErr) {
+          console.error("Failed to initialize Monnify payment:", payErr);
+        }
+      }
+
+      // Clear cart before redirecting to order tracking
+      clearCart();
+
+      // Redirect to the tracking page of the first created order (or orders list if multiple)
+      if (createdOrderIds.length === 1) {
+        router.push(`/orders/${createdOrderIds[0]}`);
+      } else {
+        router.push(`/orders`);
       }
       
-      // Since it could be multiple orders, redirect to the general orders page
-      router.push("/orders");
     } catch (error: any) {
-      console.error(error);
-      const errorMessage = error.response?.data?.error || "Failed to place order.";
-      toast.error(errorMessage);
-      setIsPlacingOrder(false);
+      console.error("Order submission error:", error);
+      alert(error.message || "Something went wrong while placing your order.");
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-32 font-sans selection:bg-accent selection:text-black">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-6xl mx-auto p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full hover:bg-white/10">
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <h1 className="font-black text-xl tracking-tight">Checkout</h1>
-          </div>
-          <span className="text-sm font-semibold text-muted-foreground">{totalItems} items</span>
+    <main className="min-h-screen bg-background text-foreground pb-20 font-sans selection:bg-accent selection:text-black">
+      {/* Top Navbar */}
+      <nav className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-xl border-b border-white/10 px-4 py-4">
+        <div className="max-w-4xl mx-auto flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full bg-white/5 hover:bg-white/10 text-white">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <span className="font-extrabold text-xl tracking-tight">Checkout</span>
         </div>
-      </div>
+      </nav>
 
-      <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 mt-2">
-        <form onSubmit={handlePlaceOrder} className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+      <div className="max-w-4xl mx-auto px-4 mt-8">
+        <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* LEFT COLUMN: The Chowdeck-style Flow */}
-          <div className="flex-1 space-y-8">
+          {/* Left Column: Delivery & Payment Details */}
+          <div className="lg:col-span-7 space-y-6">
             
-            <Card className="bg-card border border-white/5 rounded-3xl overflow-hidden shadow-lg">
+            {/* Delivery Section */}
+            <Card className="bg-card/60 backdrop-blur-xl border-white/10 rounded-3xl p-6 shadow-xl">
+              <h2 className="text-lg font-extrabold flex items-center gap-2 mb-4">
+                <MapPin className="w-5 h-5 text-accent" /> Delivery Details
+              </h2>
               
-              <div className="p-5 sm:p-7 space-y-6">
-                
-                {/* Delivery Speed Options */}
-                <div>
-                  <h3 className="font-semibold mb-2">Suitable Delivery Modes</h3>
-                  {isLoadingModes ? (
-                    <div className="text-sm text-muted-foreground animate-pulse">Calculating optimal routes...</div>
-                  ) : deliveryModes.length === 0 ? (
-                    <div className="text-sm text-red-400">No suitable delivery options for your distance.</div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                      {deliveryModes.map((mode) => (
-                        <button
-                          key={mode.id}
-                          type="button"
-                          onClick={() => setSelectedMode(mode)}
-                          className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${selectedMode?.id === mode.id ? "border-accent bg-accent/10" : "border-white/10 hover:bg-white/5"}`}
-                        >
-                          <MapPin className={`w-5 h-5 mb-2 ${selectedMode?.id === mode.id ? "text-accent" : "text-muted-foreground"}`} />
-                          <span className="font-bold text-sm">{mode.name}</span>
-                          <span className="text-[10px] text-muted-foreground">₦{mode.baseFee.toLocaleString()}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+              <div className="space-y-4">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Campus Drop-off Location</p>
+                    <p className="font-bold text-base text-white">{deliveryLocation}</p>
+                    {maxDistanceKm > 0 && (
+                      <p className="text-xs text-accent mt-1 flex items-center gap-1 font-medium">
+                        <Navigation className="w-3 h-3" /> ~{maxDistanceKm} km from vendor
+                      </p>
+                    )}
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setIsAddressModalOpen(true)} className="bg-transparent border-white/20 hover:bg-white/10 text-xs rounded-xl h-8">
+                    Change
+                  </Button>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-accent text-xs font-semibold">
-                  <CheckCircle2 className="w-4 h-4" /> PIN required for delivery
-                </div>
-
-                <div className="h-px bg-white/10 w-full my-2"></div>
-
-                {/* Clickable Action Rows */}
-                <div className="space-y-1">
-                  
-                  <div className="border border-transparent hover:bg-white/[0.02] rounded-2xl transition-colors">
-                    <div 
-                      onClick={() => setShowAddress(!showAddress)}
-                        className="flex items-center justify-between py-3 cursor-pointer group"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-muted-foreground group-hover:text-white transition-colors">
-                            <MapPin className="w-5 h-5" />
-                          </div>
-                          <div className="text-left">
-                          <p className="font-bold text-sm">
-                            {form.hall ? (form.hall === "Other" ? (form.customAddress || "Add Delivery Address") : `${form.hall}${form.room ? ` - ${form.room}` : ""}`) : "Add Delivery Address"}
-                          </p>
-                          <p className="text-xs text-muted-foreground">Campus details</p>
-                        </div>
-                        </div>
-                        <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${showAddress ? "rotate-90" : ""}`} />
-                      </div>
-                      
-                      {/* Address Accordion Content */}
-                      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showAddress ? "max-h-[300px] opacity-100 pb-4 px-2" : "max-h-0 opacity-0"}`}>
-                        <div className="space-y-3 pt-2">
-                          <select 
-                            value={form.hall}
-                            onChange={(e) => setForm({...form, hall: e.target.value})}
-                            className="w-full bg-black/40 border border-white/10 h-12 rounded-xl px-3 outline-none focus:border-accent transition-all text-sm"
+                {/* Delivery Mode Selector */}
+                {deliveryModes.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                      Delivery Method {selectedMode && <span className="text-accent font-normal lowercase">(auto-matched by distance)</span>}
+                    </label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {deliveryModes.map((mode) => {
+                        const isEligible = mode.maxDistanceKm >= maxDistanceKm || mode.id === deliveryModes[deliveryModes.length - 1]?.id;
+                        const isSelected = selectedMode?.id === mode.id;
+                        return (
+                          <div
+                            key={mode.id}
+                            onClick={() => isEligible && setSelectedMode(mode)}
+                            className={`p-3 rounded-2xl border transition-all ${
+                              !isEligible 
+                                ? "opacity-40 cursor-not-allowed bg-white/[0.02] border-white/5" 
+                                : isSelected
+                                ? "bg-accent/10 border-accent text-white cursor-pointer shadow-sm"
+                                : "bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer"
+                            }`}
                           >
-                            <option value="">Select your location</option>
-                            {UNILAG_LOCATIONS.map(loc => (
-                              <option key={loc} value={loc}>{loc}</option>
-                            ))}
-                          </select>
-                          
-                          {form.hall === "Other" ? (
-                            <Input 
-                              placeholder="Please describe your location (e.g. Under the tree at...)"
-                              value={form.customAddress}
-                              onChange={(e) => setForm({...form, customAddress: e.target.value})}
-                              className="bg-black/40 border-white/10 h-12 rounded-xl focus-visible:ring-accent text-sm" 
-                            />
-                          ) : selectedMode && (
-                            <Input 
-                              placeholder="Room Number, Wing, or Department (Optional)" 
-                              value={form.room}
-                              onChange={(e) => setForm({...form, room: e.target.value})}
-                              className="bg-black/40 border-white/10 h-12 rounded-xl focus-visible:ring-accent text-sm" 
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                  <div className="border border-transparent hover:bg-white/[0.02] rounded-2xl transition-colors">
-                    <div 
-                      onClick={() => setShowNote(!showNote)}
-                      className="flex items-center justify-between py-3 cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-muted-foreground group-hover:text-white transition-colors">
-                          <MessageSquare className="w-5 h-5" />
-                        </div>
-                        <div className="text-left">
-                          <p className="font-bold text-sm">Leave a note for your rider</p>
-                          <p className="text-xs text-muted-foreground line-clamp-1">{form.note || "Any instructions for a smooth order etc."}</p>
-                        </div>
-                      </div>
-                      <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${showNote ? "rotate-90" : ""}`} />
-                    </div>
-                    
-                    {/* Note Accordion Content */}
-                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showNote ? "max-h-[150px] opacity-100 pb-4 px-2" : "max-h-0 opacity-0"}`}>
-                      <div className="pt-2">
-                        <Input 
-                          placeholder="e.g. Call me when you get to the gate" 
-                          value={form.note}
-                          onChange={(e) => setForm({...form, note: e.target.value})}
-                          className="bg-black/40 border-white/10 h-12 rounded-xl focus-visible:ring-accent text-sm" 
-                        />
-                      </div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-bold text-sm">{mode.name}</span>
+                              <span className="font-black text-sm text-accent">₦{mode.baseFee}</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                              {isEligible ? `Up to ${mode.maxDistanceKm}km radius` : `Too far (> ${mode.maxDistanceKm}km)`}
+                            </p>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
+                )}
 
-                  <div className="border border-transparent hover:bg-white/[0.02] rounded-2xl transition-colors">
-                    <div className="flex items-center justify-between py-3 cursor-pointer group">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-accent">
-                          <Gift className="w-5 h-5" />
-                        </div>
-                        <div className="text-left">
-                          <p className="font-bold text-sm">Gift this order</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                  </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Room Number / Exact Spot *</label>
+                  <Input 
+                    required 
+                    placeholder="e.g., Block B, Room 204 or 'Wait by the buttery'" 
+                    value={roomNumber}
+                    onChange={(e) => setRoomNumber(e.target.value)}
+                    className="bg-white/5 border-white/10 rounded-xl h-12 text-white placeholder:text-muted-foreground/50 focus-visible:ring-accent"
+                  />
+                </div>
 
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Delivery Note for Rider (Optional)</label>
+                  <Input 
+                    placeholder="e.g., Call me when you get to the porter's lodge" 
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="bg-white/5 border-white/10 rounded-xl h-12 text-white placeholder:text-muted-foreground/50 focus-visible:ring-accent"
+                  />
                 </div>
               </div>
             </Card>
 
-            {/* Payment Method */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-bold text-accent tracking-wide uppercase">Payment Method</h2>
-                <span className="text-sm text-accent cursor-pointer hover:underline">+ Add new</span>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Payment Section */}
+            <Card className="bg-card/60 backdrop-blur-xl border-white/10 rounded-3xl p-6 shadow-xl">
+              <h2 className="text-lg font-extrabold flex items-center gap-2 mb-4">
+                <Wallet className="w-5 h-5 text-accent" /> Payment Method
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div 
-                  onClick={() => setPaymentMethod("wallet")}
-                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${paymentMethod === "wallet" ? "border-accent bg-accent/5" : "border-white/10 bg-card hover:bg-white/5"}`}
+                  onClick={() => setPaymentMethod("transfer")}
+                  className={`border rounded-2xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 ${paymentMethod === "transfer" ? "bg-accent/10 border-accent text-accent shadow-sm" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"}`}
                 >
-                  <Wallet className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-bold text-sm">Wallet (₦0.00)</span>
+                  <Banknote className="w-6 h-6" />
+                  <span className="font-bold text-sm">Bank Transfer</span>
                 </div>
                 
                 <div 
-                  onClick={() => setPaymentMethod("online")}
-                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${paymentMethod === "online" ? "border-accent bg-accent/5" : "border-white/10 bg-card hover:bg-white/5"}`}
+                  onClick={() => setPaymentMethod("card")}
+                  className={`border rounded-2xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 ${paymentMethod === "card" ? "bg-accent/10 border-accent text-accent shadow-sm" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"}`}
                 >
-                  <Globe className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-bold text-sm">Pay online</span>
+                  <CreditCard className="w-6 h-6" />
+                  <span className="font-bold text-sm">Pay with Card</span>
                 </div>
 
                 <div 
-                  onClick={() => setPaymentMethod("transfer")}
-                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${paymentMethod === "transfer" ? "border-accent bg-accent/5" : "border-white/10 bg-card hover:bg-white/5"}`}
+                  onClick={() => setPaymentMethod("cash")}
+                  className={`border rounded-2xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 ${paymentMethod === "cash" ? "bg-accent/10 border-accent text-accent shadow-sm" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"}`}
                 >
-                  <User className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-bold text-sm">Pay with Transfer</span>
+                  <Wallet className="w-6 h-6" />
+                  <span className="font-bold text-sm">Pay on Delivery</span>
                 </div>
               </div>
-            </div>
+              
+              {paymentMethod === "transfer" && (
+                <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs text-blue-200 flex items-start gap-2.5 leading-relaxed">
+                  <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                  <span>Powered by Monnify. You will receive a dedicated dynamic virtual account number to transfer to, with instant confirmation.</span>
+                </div>
+              )}
 
+              {paymentMethod === "card" && (
+                <div className="mt-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-200 flex items-start gap-2.5 leading-relaxed">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Powered by Monnify. Accepts Mastercard, Visa, and Verve debit cards with bank-grade 3D Secure verification.</span>
+                </div>
+              )}
+            </Card>
           </div>
 
-          {/* RIGHT COLUMN: Order Summary */}
-          <div className="w-full lg:w-[400px]">
-            <Card className="bg-card/50 backdrop-blur-xl border-white/10 rounded-3xl p-6 lg:p-8 sticky top-24 shadow-2xl">
+          {/* Right Column: Order Summary */}
+          <div className="lg:col-span-5">
+            <Card className="bg-card/60 backdrop-blur-xl border-white/10 rounded-3xl p-6 shadow-xl sticky top-24">
+              <h2 className="text-lg font-extrabold mb-4">Order Summary</h2>
               
-              <div className="mb-8 border border-white/10 rounded-2xl p-5 bg-black/20">
-                <h3 className="font-bold mb-4 text-white uppercase tracking-wider text-xs">Estimated Timeline</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 text-white/80">
-                    <Clock className="w-4 h-4 text-accent" />
-                    <span className="flex-1 text-sm font-semibold">Preparation</span>
-                    <span className="text-sm font-black">{maxPrepTime} mins</span>
-                  </div>
-                  
-                  <div className="pl-1.5 py-1">
-                    <MoveDown className="w-4 h-4 text-white/20" />
-                  </div>
-                  
-                  <div className="flex items-center gap-3 text-white/80">
-                    <Bike className="w-4 h-4 text-accent" />
-                    <span className="flex-1 text-sm font-semibold">Pickup & Transit</span>
-                    <span className="text-sm font-black">{selectedMode?.estimatedMins || 20} mins</span>
-                  </div>
+              {/* Prep Time & Batching Smart Banner */}
+              <div className="mb-4 space-y-2">
+                {(() => {
+                  const vendorList = Object.values(vendorDetails) as any[];
+                  const primaryQueue = vendorList[0]?.queueStatus || {
+                    status: 'Available',
+                    demand: 'Low',
+                    color: 'green',
+                    time: '20 – 30 mins'
+                  };
+                  const isHighDemand =
+                    primaryQueue.status === 'Rush Hour' ||
+                    primaryQueue.demand === 'High' ||
+                    primaryQueue.demand === 'Very High';
+                  const badgeColor =
+                    primaryQueue.color === 'red'
+                      ? 'text-red-400 bg-red-500/15 border-red-500/30'
+                      : primaryQueue.color === 'yellow'
+                      ? 'text-yellow-400 bg-yellow-500/15 border-yellow-500/30'
+                      : 'text-green-400 bg-green-500/15 border-green-500/30';
 
-                  <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
-                    <span className="font-bold text-sm text-white">Total ETA</span>
-                    <span className="font-black text-lg text-accent">{maxPrepTime + (selectedMode?.estimatedMins || 20)} mins</span>
-                  </div>
+                  return (
+                    <>
+                      <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-gray-200">
+                            <Clock className="w-4 h-4 text-accent shrink-0" />
+                            <span className="whitespace-nowrap">Est. Arrival Time</span>
+                          </div>
+                          <span className="text-sm font-extrabold text-white whitespace-nowrap">
+                            {primaryQueue.time || '20 – 30 mins'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
+                          <span className="text-muted-foreground font-medium">Kitchen Queue</span>
+                          <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold whitespace-nowrap ${badgeColor}`}>
+                            {primaryQueue.status} • {primaryQueue.demand} Demand
+                          </span>
+                        </div>
+                      </div>
+
+                      {isHighDemand && (
+                        <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-200 text-[11px] flex items-start gap-2 leading-relaxed">
+                          <Clock className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                          <span>
+                            <strong className="text-white">Peak Kitchen Queue ({primaryQueue.status}):</strong> Extended preparation times are active right now so your runner is dispatched right as your meal finishes cooking.
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-accent/10 via-amber-500/5 to-transparent border border-accent/20 flex items-start gap-2.5">
+                  <Sparkles className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-gray-300 leading-relaxed">
+                    <strong className="text-white">Hostel Batching Active:</strong> If another student in <span className="text-accent font-semibold">{deliveryLocation.split('(')[0].trim()}</span> orders from the same spot within 5 mins, your delivery fee splits automatically!
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-4 mb-6">
-                {items.map(item => (
-                  <div key={item.id} className="flex gap-4">
-                    <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-white/10">
-                      <Image src={item.image} alt={item.name} fill className="object-cover" />
-                      <div className="absolute top-0 right-0 bg-black/80 px-1.5 py-0.5 rounded-bl-lg font-black text-[10px]">
-                        x{item.quantity}
+              {vendorCount > 1 && (
+                <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-start gap-2 leading-relaxed">
+                  <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                  <span>Your cart has items from <strong>{vendorCount} different vendors</strong>. Separate runners will be dispatched for each vendor ({vendorCount}x delivery fee).</span>
+                </div>
+              )}
+
+              <div className="space-y-5 max-h-[40vh] overflow-y-auto pr-2 mb-6">
+                {Object.entries(vendorGroups).map(([vId, group]) => (
+                  <div key={vId} className="space-y-3">
+                    <div className="text-xs font-extrabold uppercase tracking-wider text-accent bg-accent/10 px-2.5 py-1 rounded-md inline-block">
+                      {group.vendorName}
+                    </div>
+                    {group.items.map((item) => (
+                      <div key={item.id} className="flex justify-between items-center text-sm pl-1">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-muted-foreground">{item.quantity}x</span>
+                          <div>
+                            <p className="font-bold text-white line-clamp-1">{item.name}</p>
+                          </div>
+                        </div>
+                        <span className="font-bold">₦{(item.price * item.quantity).toLocaleString()}</span>
                       </div>
-                    </div>
-                    <div className="flex-1 pt-1">
-                      <h4 className="font-bold text-sm line-clamp-2 leading-tight mb-1">{item.name}</h4>
-                      <span className="font-black text-sm text-accent">₦{(item.price * item.quantity).toLocaleString()}</span>
-                    </div>
+                    ))}
                   </div>
                 ))}
               </div>
 
-              <div className="border-t border-white/10 pt-5 space-y-3 mb-6 text-sm">
-                <div className="flex justify-between text-muted-foreground font-medium">
+              <Separator className="bg-white/10 my-4" />
+
+              <div className="space-y-2.5 text-sm">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span className="text-white">₦{totalAmount.toLocaleString()}</span>
+                  <span className="text-white font-medium">₦{totalAmount.toLocaleString()}</span>
                 </div>
-                
-                <div className="flex justify-between text-muted-foreground font-medium">
-                  <span>{selectedMode ? selectedMode.name : "Delivery"}</span>
-                  <span className="text-white">₦{deliveryFee.toLocaleString()}</span>
-                </div>
-                
-                <div className="flex justify-between text-muted-foreground font-medium">
-                  <span>Campus Convenience Fee</span>
-                  <span className="text-white">
-                    {convenienceFee === 0 ? "Free" : `₦${convenienceFee.toLocaleString()}`}
+                <div className="flex justify-between text-muted-foreground">
+                  <span>
+                    Delivery Fee {selectedMode ? `(${selectedMode.name})` : ''} {vendorCount > 1 ? `x${vendorCount}` : ''}
                   </span>
+                  <span className="text-white font-medium">₦{totalDeliveryFee.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span className="flex items-center gap-1">Service Fee <Info className="w-3 h-3 opacity-50" /></span>
+                  <span className="text-white font-medium">₦{serviceFee.toLocaleString()}</span>
                 </div>
                 
-                <div className="flex justify-between font-black text-xl text-foreground pt-4 border-t border-white/5 mt-2">
-                  <span>Total</span>
-                  <span className="text-accent">₦{grandTotal.toLocaleString()}</span>
+                <Separator className="bg-white/10 my-2" />
+                
+                <div className="flex justify-between text-base font-black pt-2">
+                  <span>Total to Pay</span>
+                  <span className="text-accent text-xl">₦{grandTotal.toLocaleString()}</span>
                 </div>
               </div>
 
-              <Button type="submit" disabled={isPlacingOrder} className="w-full bg-accent hover:bg-accent/90 text-black font-black h-14 rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all text-lg disabled:opacity-50 disabled:pointer-events-none">
-                {isPlacingOrder ? "Placing Order..." : "Place Order"}
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full mt-6 bg-accent hover:bg-accent/90 text-black font-black h-14 rounded-xl shadow-md transition-all text-base"
+              >
+                {isSubmitting ? "Processing Order..." : `Confirm & Pay ₦${grandTotal.toLocaleString()}`}
               </Button>
             </Card>
           </div>
 
         </form>
       </div>
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
+      <AuthModal 
+        isOpen={isAuthOpen} 
+        onClose={() => setIsAuthOpen(false)} 
+      />
+
+      <DeliveryAddressModal
+        isOpen={isAddressModalOpen}
+        onClose={() => setIsAddressModalOpen(false)}
+        activeAddress={deliveryLocation}
+        onSelectAddress={setDeliveryLocation}
+      />
     </main>
   );
 }

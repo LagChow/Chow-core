@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server';
 import { db } from '@lagchow/database';
 import { vendors } from '@lagchow/database/src/schema';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/jwt';
+
+async function requireAdminSession() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('__admin_session')?.value;
+  if (!token) return null;
+  const payload = await verifyToken(token);
+  if (!payload || (payload.role !== 'admin' && payload.role !== 'super_admin')) {
+    return null;
+  }
+  return payload;
+}
 
 // Helper to generate a URL-friendly slug
 function generateSlug(name: string) {
@@ -12,6 +25,11 @@ function generateSlug(name: string) {
 
 export async function POST(req: Request) {
   try {
+    const admin = await requireAdminSession();
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const data = await req.json();
     
     // Required fields from the onboarding form
@@ -47,10 +65,16 @@ export async function POST(req: Request) {
         coverImage: 'https://via.placeholder.com/600x400?text=Vendor',
         rating: '0',
         reviews: '0',
-        deliveryTime: 'N/A',
+        deliveryTime: '15-25 min',
         distance: 'N/A',
-        deliveryFee: 'N/A',
-        minOrder: 'N/A',
+        deliveryFee: '₦300',
+        minOrder: '₦1,000',
+        queueStatus: {
+          status: 'Available',
+          color: 'green',
+          demand: 'Low',
+          time: '15-25 min',
+        },
         status: 'pending_first_login', // Adhering to the strategy
       })
       .returning();
@@ -67,6 +91,11 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
+    const admin = await requireAdminSession();
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Return all vendors to display in the admin table
     const allVendors = await db.select().from(vendors);
     return NextResponse.json({ vendors: allVendors }, { status: 200 });

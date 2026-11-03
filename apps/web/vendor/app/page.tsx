@@ -7,9 +7,10 @@ import { Store, Settings, PieChart, ShoppingBag, MenuSquare, HeadphonesIcon, Log
 import OrdersView from '@/components/vendor/orders-view';
 import MenuView from '@/components/vendor/menu-view';
 import AnalyticsView from '@/components/vendor/analytics-view';
+import SettingsView from '@/components/vendor/settings-view';
 import { PushNotificationSettings } from '@/components/push-notification-settings';
 
-type Tab = 'orders' | 'menu' | 'analytics';
+type Tab = 'orders' | 'menu' | 'analytics' | 'settings';
 
 export default function VendorDashboard() {
   const router = useRouter();
@@ -36,8 +37,14 @@ export default function VendorDashboard() {
       fetch(`/api/vendors/${id}`)
         .then(res => res.json())
         .then(data => {
-          if (data.vendor?.queueStatus) {
-            setVendorStatus(data.vendor.queueStatus);
+          const rawQueue = data?.vendor?.queueStatus || data?.queueStatus;
+          if (rawQueue && typeof rawQueue === 'object' && Object.keys(rawQueue).length > 0) {
+            setVendorStatus({
+              status: rawQueue.status || 'Available',
+              color: rawQueue.color || 'green',
+              demand: rawQueue.demand || 'Low',
+              time: rawQueue.time || data?.deliveryTime || '15-25 min',
+            });
           }
         })
         .catch(console.error);
@@ -59,9 +66,38 @@ export default function VendorDashboard() {
       
       // Auto-adjust color and time based on status/demand
       if (field === 'status') {
-        if (value === 'Available') { newStatus.color = 'green'; newStatus.time = '15-25 min'; }
-        if (value === 'Moderate') { newStatus.color = 'yellow'; newStatus.time = '25-35 min'; }
-        if (value === 'Rush Hour') { newStatus.color = 'red'; newStatus.time = '45+ min'; }
+        if (value === 'Available') {
+          newStatus.color = 'green';
+          newStatus.time = '15-25 min';
+          if (newStatus.demand === 'Very High' || newStatus.demand === 'High') newStatus.demand = 'Low';
+        }
+        if (value === 'Moderate') {
+          newStatus.color = 'yellow';
+          newStatus.time = '25-35 min';
+          if (newStatus.demand === 'Low') newStatus.demand = 'Moderate';
+        }
+        if (value === 'Rush Hour') {
+          newStatus.color = 'red';
+          newStatus.time = '45+ min';
+          if (newStatus.demand === 'Low' || newStatus.demand === 'Moderate') newStatus.demand = 'High';
+        }
+      } else if (field === 'demand') {
+        if (value === 'Low' && newStatus.status === 'Available') {
+          newStatus.color = 'green';
+          newStatus.time = '15-25 min';
+        } else if (value === 'Moderate' && newStatus.status !== 'Rush Hour') {
+          newStatus.status = 'Moderate';
+          newStatus.color = 'yellow';
+          newStatus.time = '25-35 min';
+        } else if (value === 'High') {
+          if (newStatus.status === 'Available') newStatus.status = 'Moderate';
+          newStatus.color = newStatus.status === 'Rush Hour' ? 'red' : 'yellow';
+          newStatus.time = newStatus.status === 'Rush Hour' ? '45+ min' : '30-40 min';
+        } else if (value === 'Very High') {
+          newStatus.status = 'Rush Hour';
+          newStatus.color = 'red';
+          newStatus.time = '45+ min';
+        }
       }
 
       const res = await fetch(`/api/vendors/${vendorId}/status`, {
@@ -110,6 +146,12 @@ export default function VendorDashboard() {
             >
               <PieChart className="w-5 h-5" /> Analytics
             </button>
+            <button 
+              onClick={() => setActiveTab('settings')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${activeTab === 'settings' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:bg-white/5 hover:text-white'}`}
+            >
+              <Settings className="w-5 h-5" /> Settings
+            </button>
           </nav>
         </div>
 
@@ -128,9 +170,9 @@ export default function VendorDashboard() {
               disabled={statusLoading}
               className="w-full bg-black/40 border border-white/10 rounded-lg text-sm p-2 text-white outline-none focus:border-accent"
             >
-              <option value="Available">🟢 Available</option>
-              <option value="Moderate">🟡 Moderate</option>
-              <option value="Rush Hour">🔴 Rush Hour</option>
+              <option className="bg-black text-white" value="Available">🟢 Available</option>
+              <option className="bg-black text-white" value="Moderate">🟡 Moderate</option>
+              <option className="bg-black text-white" value="Rush Hour">🔴 Rush Hour</option>
             </select>
           </div>
           
@@ -142,10 +184,10 @@ export default function VendorDashboard() {
               disabled={statusLoading}
               className="w-full bg-black/40 border border-white/10 rounded-lg text-sm p-2 text-white outline-none focus:border-accent"
             >
-              <option value="Low">Low</option>
-              <option value="Moderate">Moderate</option>
-              <option value="High">High</option>
-              <option value="Very High">Very High</option>
+              <option className="bg-black text-white" value="Low">Low</option>
+              <option className="bg-black text-white" value="Moderate">Moderate</option>
+              <option className="bg-black text-white" value="High">High</option>
+              <option className="bg-black text-white" value="Very High">Very High</option>
             </select>
           </div>
         </div>
@@ -193,9 +235,9 @@ export default function VendorDashboard() {
             disabled={statusLoading}
             className="flex-1 bg-white/5 border border-white/10 rounded-lg text-xs p-2 text-white outline-none focus:border-accent appearance-none"
           >
-            <option value="Available">🟢 Available</option>
-            <option value="Moderate">🟡 Moderate</option>
-            <option value="Rush Hour">🔴 Rush Hour</option>
+            <option className="bg-black text-white" value="Available">🟢 Available</option>
+            <option className="bg-black text-white" value="Moderate">🟡 Moderate</option>
+            <option className="bg-black text-white" value="Rush Hour">🔴 Rush Hour</option>
           </select>
           <select 
             value={vendorStatus?.demand || 'Low'}
@@ -203,10 +245,10 @@ export default function VendorDashboard() {
             disabled={statusLoading}
             className="flex-1 bg-white/5 border border-white/10 rounded-lg text-xs p-2 text-white outline-none focus:border-accent appearance-none"
           >
-            <option value="Low">Low Demand</option>
-            <option value="Moderate">Mod. Demand</option>
-            <option value="High">High Demand</option>
-            <option value="Very High">Peak Demand</option>
+            <option className="bg-black text-white" value="Low">Low Demand</option>
+            <option className="bg-black text-white" value="Moderate">Mod. Demand</option>
+            <option className="bg-black text-white" value="High">High Demand</option>
+            <option className="bg-black text-white" value="Very High">Peak Demand</option>
           </select>
         </div>
       </div>
@@ -234,6 +276,13 @@ export default function VendorDashboard() {
           <PieChart className="w-6 h-6 mb-1" />
           <span className="text-[10px] font-bold uppercase">Stats</span>
         </button>
+        <button 
+          onClick={() => setActiveTab('settings')}
+          className={`flex flex-col items-center p-2 ${activeTab === 'settings' ? 'text-accent' : 'text-muted-foreground'}`}
+        >
+          <Settings className="w-6 h-6 mb-1" />
+          <span className="text-[10px] font-bold uppercase">Settings</span>
+        </button>
       </div>
 
       {/* Main Content Area */}
@@ -241,6 +290,7 @@ export default function VendorDashboard() {
         {activeTab === 'orders' && <OrdersView vendorId={vendorId} />}
         {activeTab === 'menu' && <MenuView vendorId={vendorId} />}
         {activeTab === 'analytics' && <AnalyticsView vendorId={vendorId} />}
+        {activeTab === 'settings' && <SettingsView vendorId={vendorId} />}
       </main>
     </div>
   );

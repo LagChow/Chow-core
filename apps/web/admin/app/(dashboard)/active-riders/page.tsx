@@ -1,7 +1,7 @@
 import React from 'react';
 import { db } from '@lagchow/database';
 import { riders, orders } from '@lagchow/database/src/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import { Bike, MapPin, Wifi, WifiOff, Box } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export default async function ActiveRidersPage() {
     inArray(orders.status, ['rider_accepted', 'rider_at_vendor', 'out_for_delivery', 'arrived'])
   );
 
-  const activeRiders = allRiders.filter(r => r.status === 'active');
+  const activeRiders = allRiders.filter(r => r.status === 'online' || r.status === 'active');
   const offlineRiders = allRiders.filter(r => r.status === 'offline');
   const pendingRiders = allRiders.filter(r => r.status === 'pending');
 

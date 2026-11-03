@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, MapPin, CheckCircle2, Clock, Map, PhoneCall, Receipt, Info, ChefHat, Bike, User } from 'lucide-react';
+import { ChevronLeft, MapPin, CheckCircle2, Clock, PhoneCall, Receipt, Info, ChefHat, Bike } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import axios from 'axios';
@@ -118,6 +118,10 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
                 <h3 className="font-bold text-sm text-accent">{order.vendor?.name || 'Vendor'}</h3>
                 <span className="text-xs text-white/50">•</span>
                 <span className="text-xs text-white/50">Order #LC-{order.id.slice(0, 4).toUpperCase()}</span>
+                <span className="text-xs text-white/50">•</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${order.paymentStatus === 'paid' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
+                  {order.paymentStatus === 'paid' ? 'Paid' : order.paymentMethod === 'cash' ? 'Cash on Delivery' : 'Payment Pending'}
+                </span>
               </div>
               <h2 className="font-black text-2xl mb-1">{isCancelled ? 'Order Cancelled' : STATUS_STEPS[Math.max(0, currentStatusIndex)]?.label}</h2>
               {isCancelled && (
@@ -127,7 +131,21 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
               )}
               
               {!isCancelled && order.status !== 'delivered' && (() => {
-                const qColor = queueColorMap[order.vendor?.queueStatus?.color] || queueColorMap.yellow;
+                const rawQ = order.vendor?.queueStatus || {};
+                const qStatus = rawQ.status || 'Available';
+                const qDemand = rawQ.demand || (qStatus === 'Rush Hour' ? 'High' : qStatus === 'Moderate' ? 'Moderate' : 'Low');
+                const qColorKey = rawQ.color || (qStatus === 'Rush Hour' ? 'red' : qStatus === 'Moderate' ? 'yellow' : 'green');
+                const qColor = queueColorMap[qColorKey] || queueColorMap.green;
+
+                let estDisplay = rawQ.time || order.vendor?.deliveryTime || '15–25 min';
+                if (order.estimatedReadyTime) {
+                  const readyMs = new Date(order.estimatedReadyTime).getTime();
+                  const diffMins = Math.max(1, Math.round((readyMs - Date.now()) / 60000));
+                  if (diffMins > 0 && ['pending', 'accepted', 'preparing'].includes(order.status)) {
+                    estDisplay = `~${diffMins} min (${qStatus})`;
+                  }
+                }
+
                 return (
                   <div className="inline-flex flex-col bg-white/5 border border-white/10 rounded-xl p-4 mt-2">
                     <div className="flex items-center justify-between gap-6">
@@ -135,13 +153,13 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
                         <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Demand</span>
                         <div className={`flex items-center gap-2 font-black text-lg ${qColor.text}`}>
                           <span className={`w-2.5 h-2.5 rounded-full ${qColor.bg} animate-pulse shadow-[0_0_10px_currentColor]`}></span>
-                          {order.vendor?.queueStatus?.demand || 'Moderate'}
+                          {qDemand}
                         </div>
                       </div>
                       <div className="w-[1px] h-8 bg-white/10"></div>
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Est. Prep Time</span>
-                        <span className="font-bold text-sm text-white">{order.vendor?.queueStatus?.time || '22–28 min'}</span>
+                        <span className="font-bold text-sm text-white">{estDisplay}</span>
                       </div>
                     </div>
                   </div>
@@ -203,7 +221,7 @@ export default function OrderTrackingPage({ params }: { params: Promise<{ id: st
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Delivery To</p>
-              <p className="font-bold text-sm leading-tight mt-0.5">{order.deliveryAddress?.hall}</p>
+              <p className="font-bold text-sm leading-tight mt-0.5">{order.deliveryAddress?.location || order.deliveryAddress?.hall}</p>
               {order.deliveryAddress?.room && <p className="text-xs text-muted-foreground mt-0.5">Rm {order.deliveryAddress.room}</p>}
             </div>
           </Card>

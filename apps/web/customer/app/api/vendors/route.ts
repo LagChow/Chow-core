@@ -2,14 +2,18 @@ import { NextResponse } from 'next/server';
 import { db, vendors, categories, items } from '@lagchow/database';
 import { eq } from 'drizzle-orm';
 
+function normalizeQueueStatus(raw: any, fallbackTime?: string | null) {
+  const q = raw && typeof raw === 'object' ? raw : {};
+  const status = q.status || 'Available';
+  const demand = q.demand || (status === 'Rush Hour' ? 'High' : status === 'Moderate' ? 'Moderate' : 'Low');
+  const color = q.color || (status === 'Rush Hour' ? 'red' : status === 'Moderate' ? 'yellow' : 'green');
+  const time = q.time || fallbackTime || (status === 'Rush Hour' ? '45+ min' : status === 'Moderate' ? '25-35 min' : '15-25 min');
+  return { status, demand, color, time };
+}
+
 export async function GET() {
   try {
     const allVendors = await db.select().from(vendors).where(eq(vendors.status, 'active'));
-    
-    // We also need to attach categories and items so it matches the mock data format
-    // for the homepage right now (or we can just return vendors if homepage doesn't need items).
-    // Actually, homepage uses `vendor.categories`? Let's fetch them all to be safe and match the mock.
-    
     const allCategories = await db.select().from(categories);
     const allItems = await db.select().from(items);
 
@@ -25,9 +29,14 @@ export async function GET() {
         };
       });
 
+      const queueStatus = normalizeQueueStatus(vendor.queueStatus, vendor.deliveryTime);
+
       return {
         ...vendor,
+        dbId: vendor.id,
         id: vendor.slug, // mapping slug back to id to avoid breaking frontend
+        queueStatus,
+        deliveryTime: queueStatus.time,
         categories: formattedCategories
       };
     });

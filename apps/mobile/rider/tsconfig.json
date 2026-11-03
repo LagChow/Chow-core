@@ -1,6 +1,11 @@
 {
   "extends": "@lagchow/typescript-config/base.json",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "jsx": "react-native",
+    "lib": ["ESNext"],
+    "target": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true
   }
 }
