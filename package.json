@@ -1,6 +1,7 @@
 {
   "name": "lagchow",
   "private": true,
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -20,12 +21,6 @@
   },
   "engines": {
     "node": ">=18"
-  },
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "10.33.0"
-    }
   },
   "pnpm": {
     "overrides": {
