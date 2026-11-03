@@ -326,7 +326,7 @@ export default function CheckoutPage() {
                               !isEligible 
                                 ? "opacity-40 cursor-not-allowed bg-white/[0.02] border-white/5" 
                                 : isSelected
-                                ? "bg-accent/10 border-accent text-white cursor-pointer shadow-[0_0_15px_rgba(255,77,0,0.15)]"
+                                ? "bg-accent/10 border-accent text-white cursor-pointer shadow-sm"
                                 : "bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer"
                             }`}
                           >
@@ -376,7 +376,7 @@ export default function CheckoutPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div 
                   onClick={() => setPaymentMethod("transfer")}
-                  className={`border rounded-2xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 ${paymentMethod === "transfer" ? "bg-accent/10 border-accent text-accent shadow-[0_0_20px_rgba(255,77,0,0.15)]" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"}`}
+                  className={`border rounded-2xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 ${paymentMethod === "transfer" ? "bg-accent/10 border-accent text-accent shadow-sm" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"}`}
                 >
                   <Banknote className="w-6 h-6" />
                   <span className="font-bold text-sm">Bank Transfer</span>
@@ -384,7 +384,7 @@ export default function CheckoutPage() {
                 
                 <div 
                   onClick={() => setPaymentMethod("card")}
-                  className={`border rounded-2xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 ${paymentMethod === "card" ? "bg-accent/10 border-accent text-accent shadow-[0_0_20px_rgba(255,77,0,0.15)]" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"}`}
+                  className={`border rounded-2xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 ${paymentMethod === "card" ? "bg-accent/10 border-accent text-accent shadow-sm" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"}`}
                 >
                   <CreditCard className="w-6 h-6" />
                   <span className="font-bold text-sm">Pay with Card</span>
@@ -392,7 +392,7 @@ export default function CheckoutPage() {
 
                 <div 
                   onClick={() => setPaymentMethod("cash")}
-                  className={`border rounded-2xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 ${paymentMethod === "cash" ? "bg-accent/10 border-accent text-accent shadow-[0_0_20px_rgba(255,77,0,0.15)]" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"}`}
+                  className={`border rounded-2xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 ${paymentMethod === "cash" ? "bg-accent/10 border-accent text-accent shadow-sm" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"}`}
                 >
                   <Wallet className="w-6 h-6" />
                   <span className="font-bold text-sm">Pay on Delivery</span>
@@ -443,15 +443,22 @@ export default function CheckoutPage() {
 
                   return (
                     <>
-                      <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground flex items-center gap-1.5 font-medium">
-                          <Clock className="w-4 h-4 text-accent" /> Est. Arrival Time
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${badgeColor}`}>
+                      <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-gray-200">
+                            <Clock className="w-4 h-4 text-accent shrink-0" />
+                            <span className="whitespace-nowrap">Est. Arrival Time</span>
+                          </div>
+                          <span className="text-sm font-extrabold text-white whitespace-nowrap">
+                            {primaryQueue.time || '20 – 30 mins'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
+                          <span className="text-muted-foreground font-medium">Kitchen Queue</span>
+                          <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold whitespace-nowrap ${badgeColor}`}>
                             {primaryQueue.status} • {primaryQueue.demand} Demand
                           </span>
-                          <span className="font-bold text-white">{primaryQueue.time || '20 – 30 mins'}</span>
                         </div>
                       </div>
 
@@ -532,7 +539,7 @@ export default function CheckoutPage() {
               <Button 
                 type="submit" 
                 disabled={isSubmitting}
-                className="w-full mt-6 bg-accent hover:bg-accent/90 text-white font-extrabold h-14 rounded-xl shadow-[0_0_30px_rgba(255,77,0,0.4)] transition-all text-base"
+                className="w-full mt-6 bg-accent hover:bg-accent/90 text-black font-black h-14 rounded-xl shadow-md transition-all text-base"
               >
                 {isSubmitting ? "Processing Order..." : `Confirm & Pay ₦${grandTotal.toLocaleString()}`}
               </Button>

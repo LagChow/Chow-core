@@ -106,8 +106,15 @@ export async function initializeMonnifyTransaction(
 
   // Cloudflare WAF on Monnify requires an HTTPS redirectUrl (rejects http://localhost)
   let safeRedirectUrl = input.redirectUrl;
-  if (!safeRedirectUrl || safeRedirectUrl.startsWith("http://localhost") || safeRedirectUrl.startsWith("http://127.0.0.1")) {
-    safeRedirectUrl = "https://lagchow.vercel.app/checkout/success";
+  if (!safeRedirectUrl || safeRedirectUrl.startsWith("http://localhost") || safeRedirectUrl.startsWith("http://127.0.0.1") || safeRedirectUrl.includes("lagchow.vercel.app")) {
+    try {
+      const parsed = new URL(safeRedirectUrl || "/checkout/success", "https://chow-core-customer.vercel.app");
+      safeRedirectUrl = `https://chow-core-customer.vercel.app${parsed.pathname}${parsed.search}`;
+    } catch {
+      safeRedirectUrl = "https://chow-core-customer.vercel.app/checkout/success";
+    }
+  } else if (safeRedirectUrl.includes("lagchow.vercel.app")) {
+    safeRedirectUrl = safeRedirectUrl.replace("https://lagchow.vercel.app", "https://chow-core-customer.vercel.app");
   }
 
   const body: Record<string, any> = {
