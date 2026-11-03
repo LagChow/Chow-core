@@ -315,6 +315,48 @@ pnpm dev
 
 To maintain ultra-low latency without bloating the Next.js frontend applications, real-time telemetry, WebSocket rooms, and dispatch automation are extracted into a dedicated service: `lagchow-sockets`.
 
+### Architecture
+
+```
+                       ┌────────────────────────────────────────────────────────┐
+                       │                     CLIENT APPS                        │
+                       │   Customer App  |  Vendor Portal  |  Rider Native      │
+                       └─────────────────────────┬──────────────────────────────┘
+                                                 │
+                                     WebSocket / HTTP API
+                                                 │
+┌────────────────────────────────────────────────▼─────────────────────────────────────────────────┐
+│                                ALL-IN-ONE CONTAINER (PORT 3010)                                 │
+│                                                                                                  │
+│   ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
+│   │                                 LagChow Node.js Engine                                   │   │
+│   │                                                                                          │   │
+│   │   • Socket.io Gateway: Room management (`order:${id}`, `vendor:${id}`, `trekker:${id}`)  │   │
+│   │   • Security Middleware: JOSE JWT token verification & cookie authentication             │   │
+│   │   • Internal Dispatcher: Autonomous background polling loop evaluating pending orders    │   │
+│   │   • In-Memory Routing Cache: Memoized coordinate lookups with promise deduplication       │   │
+│   └─────────────────────────────────────┬────────────────────────────────────────────────────┘   │
+│                                         │                                                        │
+│                    HTTP Requests        │ Internal Route Query                                   │
+│                    localhost:8002       ▼                                                        │
+│   ┌──────────────────────────────────────────────────────────────────────────────────────────┐   │
+│   │                           Valhalla C++ Micro-Daemon (Port 8002)                          │   │
+│   │                                                                                          │   │
+│   │   • Storage: `/custom_files/valhalla_tiles.tar` (47.7 MB, 28 Lagos tiles)                │   │
+│   │   • Profiles: `auto` (driving / bike) & `pedestrian` (campus walking paths)              │   │
+│   │   • Sub-10ms route evaluation across Lagos & UNILAG perimeter                           │   │
+│   └──────────────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                                  │
+└────────────────────────────────────────────────┬─────────────────────────────────────────────────┘
+                                                 │
+                                         Postgres Connection
+                                                 ▼
+                                     ┌───────────────────────┐
+                                     │  Neon / Supabase DB   │
+                                     │     (Drizzle ORM)     │
+                                     └───────────────────────┘
+```
+
 ### Core Responsibilities
 1. **Bidirectional Socket Gateway:** Manages isolated rooms for order updates (`order:${id}`), vendor order feeds (`vendor:${id}`), courier telemetry (`trekker:${id}`), and global admin alerts.
 2. **Autonomous Dispatch Polling Loop:** Periodically evaluates unassigned pending orders, calculates optimal courier assignments using street-network routing, and fires candidate assignment events.
@@ -324,9 +366,40 @@ To maintain ultra-low latency without bloating the Next.js frontend applications
 Candidates are evaluated against a multi-factor objective function:
 $$\text{Cost} = w_1(\text{ArrivalToVendor}) + w_2(\text{PickupDelay}) + w_3(\text{IncrementalTime}) + w_4(\text{RouteDetour}) + w_5(\text{Workload}) + w_6(\text{SlaRisk})$$
 
-- **Stage 1 (Pre-Filter):** Shortlists online couriers within maximum allowable pickup SLA window.
-- **Stage 2 (Scoring):** Computes total route duration and detour overhead using live street distances.
-- **Stage 3 (Assignment):** Streams `TREKKER_ASSIGNED` event with accept/reject timeout counters.
+| Parameter | Default Weight | Objective |
+|---|---|---|
+| `arrivalToVendor` | `0.25` | Minimize initial transit distance to restaurant |
+| `pickupDelay` | `2.0` | Heavily penalize meals cooling down at pickup counter |
+| `incrementalTime` | `1.0` | Factor in existing batch transit time |
+| `routeDetour` | `2.0` | Prevent excessive zig-zagging on bundled orders |
+| `workload` | `0.25` | Distribute orders fairly across active runners |
+| `slaRisk` | `100.0` | Exponential penalty if order risks breaching customer promise |
+
+- **Stage 1 (Pre-Filter):** Shortlists online couriers within maximum allowable pickup SLA window (`DEFAULT_MAX_PICKUP_ETA_MINUTES`).
+- **Stage 2 (Scoring):** Computes total route duration and detour overhead using live street distances via `ValhallaRoutingEngine`.
+- **Stage 3 (Assignment):** Streams `TREKKER_ASSIGNED` event with accept/reject timeout counters; triggers automated re-dispatch if unaccepted.
+
+### Cross-Service Bridge & Socket Events
+
+#### HTTP Endpoints
+- `GET /health`: Service uptime and timestamp check.
+- `POST /emit`: Server-to-server event dispatch bridge. Requires header `x-internal-secret: <INTERNAL_WS_SECRET>`.
+
+```json
+{
+  "event": "ORDER_READY",
+  "room": "order:cm3abcdef0001",
+  "data": {
+    "orderId": "cm3abcdef0001",
+    "vendorId": "vnd_12345",
+    "pickupCode": "4821"
+  }
+}
+```
+
+#### Event Taxonomy
+- **Order Lifecycle:** `NEW_ORDER`, `ORDER_ACCEPTED`, `ORDER_READY`, `ORDER_PICKED_UP`, `ORDER_DELIVERED`.
+- **Courier Telemetry:** `TREKKER_ONLINE`, `TREKKER_OFFLINE`, `TREKKER_LOCATION_UPDATED`, `TREKKER_ASSIGNED`.
 
 ---
 
@@ -348,7 +421,19 @@ osmium extract --bbox=2.70,6.35,4.25,6.75 nigeria-latest.osm.pbf -o lagos.osm.pb
 | **Compiled Tiles** | ~500 MB+ | 47.7 MB (28 tiles in `valhalla_tiles.tar`) | **~90.5%** |
 | **Memory Footprint** | 2.5 GB+ RAM | ~400 - 600 MB RAM | **Production-Ready on Free/Cheap Tiers** |
 
+### Automated Tile Compilation Pipeline (`build-tiles.ps1`)
+1. **Download:** Fetches `nigeria-latest.osm.pbf` via `curl.exe` with resume (`-C -`) and retry (`--retry 5`).
+2. **Crop:** Uses `mschilde/osmium-tool` via Docker to crop the exact Lagos bounding box into `custom_files/lagos.osm.pbf` and purges the 680 MB raw download.
+3. **Compile:** Runs `ghcr.io/gis-ops/docker-valhalla/valhalla:latest` to generate `custom_files/valhalla.json` and bundles 28 tiles into `custom_files/valhalla_tiles.tar`.
+
 ### Single-Container Deployment Architecture
 The `Dockerfile` builds upon `ghcr.io/gis-ops/docker-valhalla/valhalla:latest`, installs Node.js 20, bundles `custom_files/valhalla_tiles.tar`, and launches both services via `entrypoint.sh`:
 - **Port 8002:** Valhalla C++ daemon serving JSON route queries locally.
 - **Port 3010:** Node.js Express & Socket.io server handling external clients and dispatching routes.
+
+#### Deployment (Render / Docker)
+- **Environment:** Docker
+- **Instance Type:** Starter / Standard (512 MB – 1 GB RAM)
+- **Port:** `3010`
+- **Healthcheck:** `/health`
+- **Env Vars Required:** `NODE_ENV`, `PORT`, `VALHALLA_URL`, `JWT_SECRET`, `INTERNAL_WS_SECRET`, `DATABASE_URL`
